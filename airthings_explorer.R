@@ -4,14 +4,14 @@ library(tidyverse)
 library(lubridate)
 library(janitor)
 
-# set working directory to file location
+# set working directory to R script location
 source_file_loc <- dirname(rstudioapi::getActiveDocumentContext()$path)
 setwd(source_file_loc)
 
-
+#read in data
 air_dat <- read.csv("data/2960014368-latest.csv", sep = ";")
 
-
+#clean raw data, deal with date/time string
 air_dat_cleaned <- air_dat %>% 
   clean_names() %>%
   separate(recorded, sep = "T", into = c("date", "time"), remove = FALSE) %>% 
@@ -21,7 +21,7 @@ air_dat_cleaned <- air_dat %>%
          recorded = ymd_hms(recorded)) %>% 
   select(-time)
 
-
+#make data long so we can plot it all at once 
 air_dat_long <- air_dat_cleaned %>% 
   pivot_longer(names_to = "metric",
                values_to = "Result",
@@ -36,6 +36,7 @@ air_dat_long <- air_dat_cleaned %>%
                             metric == "voc_ppb" ~ "VOC (ppb)",
                             metric == "humidity" ~ "Humidity (%)"))
 
+#create time series plot of all metrics  
 ggplot(air_dat_long, aes(x = recorded, y = Result, color = day(recorded))) + 
   #geom_point() +
   geom_line() + 
