@@ -74,26 +74,58 @@ shinyServer(function(input, output) {
         req(input$metric)
         show_dat <- dat()
         
-        air_plot <- ggplot(show_dat) + 
-            geom_line(aes(x = recorded, y = Result ,
-                          color = day(recorded),
-                          label = Time,
-                          label2 = date)) +
-            viridis::scale_color_viridis() + 
-            facet_wrap(~metric, ncol = 1, scales = "free_y") + 
-            ggthemes::theme_pander() +
-            xlab("Date")+
-            ylab("Concentration") + 
-            theme(legend.position = "none",
-                  panel.grid.major.y = element_blank(),
-                  panel.grid.major.x = element_line(color = "snow2"),
-                  strip.text.x = element_text(color = "#556B2F", face = "bold"),
-                  text = element_text(family = "Arial"))
+        # air_plot <- ggplot(show_dat) + 
+        #     geom_line(aes(x = recorded, y = Result ,
+        #                   color = day(recorded),
+        #                   label = Time,
+        #                   label2 = date)) +
+        #     viridis::scale_color_viridis() + 
+        #     facet_wrap(~metric, ncol = 1, scales = "free_y") + 
+        #     ggthemes::theme_pander() +
+        #     xlab("Date")+
+        #     ylab("Concentration") + 
+        #     theme(legend.position = "none",
+        #           panel.grid.major.y = element_blank(),
+        #           panel.grid.major.x = element_line(color = "snow2"),
+        #           strip.text.x = element_text(color = "#556B2F", face = "bold"),
+        #           text = element_text(family = "Arial"))
+        # 
+        # #print figure
+        # ggplotly(air_plot, 
+        #          tooltip = c("y", "label", "label2"),
+        #          height = length(unique(show_dat$metric))*300) 
         
-        #print figure
-        ggplotly(air_plot, 
-                 tooltip = c("y", "label", "label2"),
-                 height = length(unique(show_dat$metric))*300) 
+        
+        air_plot <- list()
+        air_plot_names <- list()
+        for(i in unique(show_dat$metric)){
+            
+            air_plot2 <- ggplot(show_dat %>% 
+                                        filter(metric == i), 
+                                    aes(x = recorded, y = Result, color = day(recorded))) + 
+                geom_line() + 
+                viridis::scale_color_viridis() + 
+                facet_wrap(~metric, scales = "free_y") + 
+                ggthemes::theme_pander() +
+                xlab("Date")+
+                ylab("Concentration") + 
+                theme(legend.position = "none",
+                      panel.grid.major.y = element_blank(),
+                      panel.grid.major.x = element_line(color = "snow2"),
+                      strip.text.x = element_text(color = "#556B2F", face = "bold"),
+                      text = element_text(family = "Arial"))
+            
+                air_plot[[i]] <-  ggplotly(air_plot2, 
+                                           tooltip = c("y", "label", "label2"),
+                                           height = 300*length(unique(show_dat$metric))) 
+
+
+            
+        }
+        
+        
+        
+        subplot(c(air_plot), nrows = length(unique(show_dat$metric)))
 
 })
 
