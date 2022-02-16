@@ -8,7 +8,7 @@ library(janitor)
 source_file_loc <- dirname(rstudioapi::getActiveDocumentContext()$path)
 setwd(source_file_loc)
 
-#read in data
+#read in data (change to location of your file)
 air_dat <- read.csv("data/2960014368-latest.csv", sep = ";")
 air_benchmarks <- read_csv("air_benchmarks.csv") 
 
@@ -72,7 +72,7 @@ ggplot(air_dat_long, aes(x = recorded, y = Result, color = day(recorded))) +
         strip.text.x = element_text(color = "#556B2F", face = "bold"),
         text = element_text(family = "Arial"))
 
-
+#create time series plots individually 
 air_plot <- list()
 for(i in unique(air_dat_long$metric)){
   
@@ -95,5 +95,3 @@ for(i in unique(air_dat_long$metric)){
 }
 
 
-air_plot$`Temperature (F)` + 
-  geom_hline(yintercept = 70)
