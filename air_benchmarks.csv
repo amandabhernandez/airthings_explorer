@@ -1,0 +1,23 @@
+metric,Benchmark,Description
+Radon (pCi/L),0-2.6 pCi/L,Good
+Radon (pCi/L),2.7-4.0 pCi/L,Fair
+Radon (pCi/L),> 4.0 pCi/L,Poor
+Humidity (%),>70%,High
+Humidity (%),60-70%,Fair
+Humidity (%),30-60%,Good
+Humidity (%),25-30%,Fair
+Humidity (%),<25%,Low
+CO2 (ppm),250-400 ppm,Background
+CO2 (ppm),"400-1,000 ppm",Good
+CO2 (ppm),"1,000-2,000 ppm",Poor
+CO2 (ppm),"2,000-5,000 ppm",High
+CO2 (ppm),">40,000 ppm",Extreme
+VOC (ppb),0-250 ppb,Low
+VOC (ppb),250-2000 ppb,Med
+VOC (ppb),> 2000 ppb,High
+PM1 (mg/m3),<10 ug/m2,Good
+PM2.5 (mg/m3),<10 ug/m3,Good
+PM1 (mg/m3),10-25 ug/m3,Fair
+PM2.5 (mg/m3),10-25 ug/m3,Fair
+PM1 (mg/m3),>25 ug/m3,Poor
+PM2.5 (mg/m3),>25 ug/m3,Poor
