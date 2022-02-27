@@ -34,6 +34,8 @@ air_dat_cleaned <- air_dat %>%
          Time = ifelse(minute(time) >= 10, paste0(hour(time), ":", minute(time)),
                        paste0(hour(time), ":0", minute(time)))) 
 
+#if you want to just write out the time zone corrected file, you can stop here 
+#write.csv(air_dat_cleaned, paste0("air_dat_cleaned_", Sys.Date() ,".csv"))
 
 
 #make data long so we can plot it all at once 
