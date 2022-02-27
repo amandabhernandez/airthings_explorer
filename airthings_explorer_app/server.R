@@ -38,28 +38,28 @@ shinyServer(function(input, output) {
         
         else if(input$date_select == "12hr"){
             air_dat_long %>%
-                filter(recorded >= now()-hours(12))
+                filter(recorded >= max(air_dat_long$recorded)-hours(12))
         }
         
         else if(input$date_select == "24hr"){
             air_dat_long %>%
-                filter(recorded >= now() - hours(24))
+                filter(recorded >= max(air_dat_long$recorded) - hours(24))
         }
         else if(input$date_select == "36hr"){
             air_dat_long %>%
-                filter(recorded >= now() - hours(36))
+                filter(recorded >= max(air_dat_long$recorded) - hours(36))
         }
         else if(input$date_select == "48hr"){
             air_dat_long %>%
-                filter(recorded >= now() - hours(48))
+                filter(recorded >= max(air_dat_long$recorded) - hours(48))
         }
         else if(input$date_select == "1wk"){
             air_dat_long %>%
-                filter(recorded >= now() - weeks(1))
+                filter(recorded >= max(air_dat_long$recorded)- weeks(1))
         }
         else if(input$date_select == "1mo"){
             air_dat_long %>%
-                filter(recorded >= now() - months(1))
+                filter(recorded >= max(air_dat_long$recorded) - months(1))
         }
         else{
             air_dat_long
@@ -133,18 +133,19 @@ shinyServer(function(input, output) {
     output$radon_current <- renderInfoBox({
         infoBox(
             value = paste0(current_dat$radonShortTermAvg, " pCi/L"),
-            title = "Radon",
+            title = "Radon (short term avg)",
             icon = fontawesome::fa_i("radiation"), 
-            color = ifelse(current_dat$radonShortTermAvg > get_avg.med$Q3[which(get_avg.med$metric == 
-                                                                       "Radon (pCi/L)")], "yellow",
-                           ifelse(current_dat$radonShortTermAvg < get_avg.med$Q1[which(get_avg.med$metric == 
-                                                                              "Radon (pCi/L)")],
-                                  "light-blue", "olive")),
-            subtitle = ifelse(current_dat$radonShortTermAvg > get_avg.med$Q3[which(get_avg.med$metric == 
-                                                                          "Radon (pCi/L)")], "this is higher than usual",
-                              ifelse(current_dat$radonShortTermAvg < get_avg.med$Q1[which(get_avg.med$metric == 
-                                                                                 "Radon (pCi/L)")],
-                                     "this is lower than usual", ""))
+            color = "olive"
+            # color = ifelse(current_dat$radonShortTermAvg > get_avg.med$Q3[which(get_avg.med$metric == 
+            #                                                            "Radon (pCi/L)")], "yellow",
+            #                ifelse(current_dat$radonShortTermAvg < get_avg.med$Q1[which(get_avg.med$metric == 
+            #                                                                   "Radon (pCi/L)")],
+            #                       "light-blue", "olive")),
+            # subtitle = ifelse(current_dat$radonShortTermAvg > get_avg.med$Q3[which(get_avg.med$metric == 
+            #                                                               "Radon (pCi/L)")], "this is higher than usual",
+            #                   ifelse(current_dat$radonShortTermAvg < get_avg.med$Q1[which(get_avg.med$metric == 
+            #                                                                      "Radon (pCi/L)")],
+            #                          "this is lower than usual", ""))
         )
     })
     output$co2_current <- renderInfoBox({
@@ -259,13 +260,113 @@ shinyServer(function(input, output) {
     output$airplot <- renderPlotly({
         show_dat <- dat()
         
-        air_plot <- ggplot(dat()) +
+        air_plot <- ggplot(show_dat) %>%
+            timeseries_plot()
+
+        #print figure
+        ggplotly(air_plot,
+                 tooltip = c("y", "label", "label2"),
+                 height = length(unique(show_dat$metric))*300)
+    })
+    
+    
+    #temperature page 
+    output$tempplot <- renderPlotly({
+        time_subplot(dat(), "Temperature (F)")
+
+        
+    })
+    output$temp_density <- renderPlotly({
+        dens_plotly(dat(), "Temperature (F)")
+    })
+    
+    output$temp_xy <- renderPlotly({
+        req(input$temp_y_comp)
+        comp_xy(dat(), "Temperature (F)", input$temp_y_comp)
+        
+    })
+    
+    #humidity page 
+    output$humplot <- renderPlotly({
+        time_subplot(dat(), "Humidity (%)")
+        
+    })
+    output$hum_density <- renderPlotly({
+        dens_plotly(dat(), "Humidity (%)")
+    })
+    
+    output$hum_xy <- renderPlotly({
+        req(input$hum_y_comp)
+        
+        comp_xy(dat(), "Humidity (%)", input$hum_y_comp)
+        
+    })
+    
+    #CO2 page 
+    output$pressplot <- renderPlotly({
+        time_subplot(dat(), "Pressure (mbar)")
+        
+        
+    })
+    output$pressure_density <- renderPlotly({
+    dens_plotly(dat(), "Pressure (mbar)")
+
+    })
+    
+    output$press_xy <- renderPlotly({
+        req(input$press_y_comp)
+        comp_xy(dat(), "Pressure (mbar)", input$press_y_comp)
+        
+    })
+    
+    #CO2 page 
+    output$co2plot <- renderPlotly({
+        time_subplot(dat(), "CO2 (ppm)")
+        
+        
+    })
+    output$co2_density <- renderPlotly({
+        dens_plotly(dat(), "CO2 (ppm)")
+        
+    })
+    
+    output$co2_xy <- renderPlotly({
+        req(input$co2_y_comp)
+        comp_xy(dat(), "CO2 (ppm)", input$co2_y_comp)
+        
+    })
+    #VOC page 
+    output$vocplot <- renderPlotly({
+        time_subplot(dat(), "VOC (ppb)")
+        
+        
+    })
+    output$voc_density <- renderPlotly({
+        dens_plotly(dat(), "VOC (ppb)")
+        
+    })
+    
+    output$voc_xy <- renderPlotly({
+        req(input$voc_y_comp)
+        comp_xy(dat(), "VOC (ppb)", input$voc_y_comp)
+        
+    })
+    
+    #PM page
+    output$pmplot <- renderPlotly({
+        sub_dat <- dat() %>% 
+            filter(str_detect(metric, "PM"))
+        
+        sub_plot <- ggplot(sub_dat) +
             geom_line(aes(x = recorded, y = Result ,
-                          color = day(recorded),
+                          color = metric,
+                          alpha = metric, 
                           label = Time,
                           label2 = date)) +
-            viridis::scale_color_viridis() +
-            facet_wrap(~metric, ncol = 1, scales = "free_y") +
+            scale_color_manual(values = c("#cf9c2e", "#ec7f78"))+
+            scale_alpha_manual(values = c(0.75, .5))+
+            #viridis::scale_color_viridis() +
+            #facet_wrap(~metric, ncol = 1, scales = "free_y") +
             ggthemes::theme_pander() +
             xlab("Date")+
             ylab("Concentration") +
@@ -274,11 +375,83 @@ shinyServer(function(input, output) {
                   panel.grid.major.x = element_line(color = "snow2"),
                   strip.text.x = element_text(color = "#556B2F", face = "bold"),
                   text = element_text(family = "Arial"))
-
-        #print figure
-        ggplotly(air_plot,
-                 tooltip = c("y", "label", "label2"),
-                 height = length(unique(show_dat$metric))*300)
+        
+        sub_plotly <- ggplotly(sub_plot,
+                               tooltip = c("y", "label", "label2"))
+        
+        # sub_violin_ly <- chronicle::make_violin(sub_dat, value = 'Result', 
+        #                                         plot_palette = c("#cf9c2e", "#ec7f78"), 
+        #                                         groups = 'metric')
+        
+        
+        sub_box <- ggplot(sub_dat) + 
+            geom_boxplot(aes(x = metric, y = Result, fill = metric)) + 
+            scale_fill_manual(values = c("#cf9c2e", "#ec7f78"))+
+            # geom_boxplot(air_dat_long %>%
+            #                filter(metric == facet), aes(x = metric, y = Result )) +-
+            ggthemes::theme_pander() +
+            theme(legend.position = "none",
+                  panel.grid.major.y = element_blank(),
+                  panel.grid.major.x = element_line(color = "snow2"), 
+                  text = element_text(family = "Arial"))
+        
+        sub_box_ly <- ggplotly(sub_box)
+        
+        subplot(list(sub_plotly, sub_box_ly), widths = c(.9, .1), 
+                nrows = 1, shareY = TRUE, margin = 0)
+        
+        
     })
+    output$pm_density <- renderPlotly({
+        dens_plotly(dat(), c("PM2.5 (mg/m3)", "PM10 (mg/m3)"))
+        
+    })
+    
+    output$pm_xy <- renderPlotly({
+        req(input$pm_y_comp)
+        
+        new_dat <- dat() %>%
+            select(-recorded) %>%
+            mutate(hour_match = hour(time),
+                   minute_match = minute(time)) %>%
+            select(-time, -Time) %>%
+            pivot_wider(names_from = "metric", values_from = "Result") %>%
+            select(`PM2.5 (mg/m3)`,`PM10 (mg/m3)`, input$pm_y_comp, date, hour_match, minute_match) %>%
+            rename(y = input$pm_y_comp)
+        
+        pm <- highlight_key(new_dat)
+        if(!input$pm_y_comp %in% c(c("PM2.5 (mg/m3)", "PM10 (mg/m3)")) ){
+            pm2.5 <- plot_ly(pm, x = ~`PM2.5 (mg/m3)`, y = ~y) %>%
+                add_markers(showlegend = FALSE) %>% 
+                highlight("plotly_selected")
+            pm10 <- plot_ly(pm, x = ~`PM10 (mg/m3)`, y = ~y) %>%
+                add_markers(showlegend = FALSE) %>% 
+                highlight("plotly_selected")
+        }
+        else if(input$pm_y_comp == "PM2.5 (mg/m3)"){
+            pm2.5 <- plot_ly(pm, x = ~y, y = ~y) %>%
+                add_markers(showlegend = FALSE) %>% 
+                highlight("plotly_selected")
+            pm10 <- plot_ly(pm, x = ~`PM10 (mg/m3)`, y = ~y) %>%
+                add_markers(showlegend = FALSE) %>% 
+                highlight("plotly_selected")
+        }
+        else if(input$pm_y_comp == "PM10 (mg/m3)"){
+            pm2.5 <- plot_ly(pm, x = ~`PM2.5 (mg/m3)`, y = ~y) %>%
+                add_markers(showlegend = FALSE) %>% 
+                highlight("plotly_selected")
+            pm10 <- plot_ly(pm, x = ~y, y = ~y) %>%
+                add_markers(showlegend = FALSE) %>% 
+                highlight("plotly_selected")
+        }
 
+        
+        subplot(list(pm2.5, pm10), titleX = TRUE)
+        
+        #bscols(width = c(2,2), pm2.5, pm10)
+        
+    })
+    
+    
+    
 })
