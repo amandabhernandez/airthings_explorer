@@ -1,3 +1,8 @@
+### AUTHOR: AHz
+### LAST EDIT: 2022-02-26
+### WRITTEN IN: R version 4.0.5
+### Purpose: work with AirThings data 
+
 
 
 library(tidyverse)
@@ -9,16 +14,15 @@ source_file_loc <- dirname(rstudioapi::getActiveDocumentContext()$path)
 setwd(source_file_loc)
 
 #read in data (change to location of your file)
-air_dat <- read.csv("data/2960014368-latest.csv", sep = ";")
-air_benchmarks <- read_csv("air_benchmarks.csv") 
+#air_dat <- read.csv("data/2960014368-latest.csv", sep = ";")
 
+air_benchmarks <- read_csv("air_benchmarks.csv") 
 
 #clean raw data, deal with date/time string
 air_dat_cleaned <- air_dat %>% 
   clean_names() %>%
   separate(recorded, sep = "T", into = c("date", "time"), remove = FALSE) %>% 
   mutate(date = ymd(date),
-         #time = hms(time),
          Time = paste0(hour(hms(time)), ":", minute(hms(time))),
          recorded = ymd_hms(recorded)) %>% 
   select(-time)
@@ -33,16 +37,16 @@ air_dat_long <- air_dat_cleaned %>%
                values_drop_na = TRUE) %>% 
   mutate(metric = factor(metric, levels = c("co2_ppm","pm1_mg_m3", "pm2_5_mg_m3", "pressure_h_pa",
                                     "radon_short_term_avg_p_ci_l", "temp_f", "voc_ppb", "humidity"),
-                         labels = c("CO2 (ppm)", "PM1 (mg/m3)", "PM2.5 (mg/m3)", "Pressure (mbar)",
+                         labels = c("CO2 (ppm)", "PM10 (mg/m3)", "PM2.5 (mg/m3)", "Pressure (mbar)",
                                     "Radon (pCi/L)", "Temperature (F)", "VOC (ppb)","Humidity (%)")),
          quality_ind = case_when(metric == "CO2 (ppm)" & Result < 400 ~ "Background",
                                  metric == "CO2 (ppm)" & Result >= 400 & Result < 1000 ~ "Fair",
                                  metric == "CO2 (ppm)" & Result >= 1000 & Result < 2000 ~ "Poor",
                                  metric == "CO2 (ppm)" & Result >= 2000 & Result < 5000 ~ "High",
                                  metric == "CO2 (ppm)" & Result >= 5000  ~ "Extreme",
-                                 metric %in% c("PM1 (mg/m3)", "PM2.5 (mg/m3)") & Result < 10 ~ "Good",
-                                 metric %in% c("PM1 (mg/m3)", "PM2.5 (mg/m3)") & Result >= 10 & Result < 25 ~ "Fair",
-                                 metric %in% c("PM1 (mg/m3)", "PM2.5 (mg/m3)") & Result >=25 ~ "Poor",
+                                 metric %in% c("PM10 (mg/m3)", "PM2.5 (mg/m3)") & Result < 10 ~ "Good",
+                                 metric %in% c("PM10 (mg/m3)", "PM2.5 (mg/m3)") & Result >= 10 & Result < 25 ~ "Fair",
+                                 metric %in% c("PM10 (mg/m3)", "PM2.5 (mg/m3)") & Result >=25 ~ "Poor",
                                  metric == "VOC (ppb)" & Result < 250 ~ "Low",
                                  metric == "VOC (ppb)" & Result >= 250 & Result < 2000 ~ "Med",
                                  metric == "VOC (ppb)" & Result >= 2000 ~ "High",
@@ -53,7 +57,24 @@ air_dat_long <- air_dat_cleaned %>%
                                  metric == "Humidity (%)" & Result >= 60 & Result < 70 ~ "Fair",
                                  metric == "Humidity (%)" & Result >= 30 & Result < 60 ~ "Good",
                                  metric == "Humidity (%)" & Result >= 25 & Result < 30 ~ "Fair",
-                                 metric == "Humidity (%)" & Result< 25 ~ "Low")) 
+                                 metric == "Humidity (%)" & Result< 25 ~ "Low",
+                                 TRUE ~ "none")) %>% 
+  #drop first 7 days of VOC and CO2 (calibration period)
+  filter(!(metric %in% c("VOC (ppb)", "CO2 (ppm)") & date < c(min(date)+days(7)))) %>% 
+  group_by(metric) %>% 
+  mutate(rec_prior= lag(recorded, order_by = recorded, 
+                        default = min(recorded)),
+         rec_after = lead(recorded, order_by = recorded, 
+                         default = max(recorded)),
+         intrvl = interval(rec_prior, rec_after),
+         dif = as.duration(intrvl)/4,
+         xmin = rec_prior + dif,
+         xmax = rec_after-dif,
+         ymin = lag(Result, order_by = recorded,
+                     default = min(Result)),
+         ymax = lead(Result, order_by = recorded,
+                      default = max(Result))
+         )
 
 
 
@@ -72,20 +93,22 @@ ggplot(air_dat_long, aes(x = recorded, y = Result, color = day(recorded))) +
         strip.text.x = element_text(color = "#556B2F", face = "bold"),
         text = element_text(family = "Arial"))
 
+
+
 #create time series plots individually 
 air_plot <- list()
 for(i in unique(air_dat_long$metric)){
   
   air_plot[[i]] <- ggplot(air_dat_long %>% 
-           filter(metric == i), aes(x = recorded, y = Result, color = day(recorded))) + 
-    geom_line() + 
-    viridis::scale_color_viridis() + 
+           filter(metric == i), aes(x = recorded, y = Result)) +
+    #geom_point(aes(x = recorded, y = Result)) + 
+    #geom_point(aes(color = quality_ind)) +
+    geom_path() + 
     facet_wrap(~metric, scales = "free_y") + 
     ggthemes::theme_pander() +
     xlab("Date")+
     ylab("Concentration") + 
-    theme(legend.position = "none",
-          panel.grid.major.y = element_blank(),
+    theme(panel.grid.major.y = element_blank(),
           panel.grid.major.x = element_line(color = "snow2"),
           strip.text.x = element_text(color = "#556B2F", face = "bold"),
           text = element_text(family = "Arial"))
@@ -94,4 +117,92 @@ for(i in unique(air_dat_long$metric)){
   
 }
 
+
+
+#look at low PM2.5 readings 
+low_pm <- air_dat_long %>% 
+  filter(str_detect(metric, "PM")) %>% 
+  mutate(flag_nd = case_when(Result <=10 ~ "!",
+                             TRUE ~ ""))
+
+
+ggplot(low_pm, aes(x = recorded, y = Result)) +
+  #geom_point(aes(x = recorded, y = Result)) + 
+  geom_point(aes(color = flag_nd)) + 
+  geom_path()+
+  facet_wrap(~metric, scales = "free_y") + 
+  ggthemes::theme_pander() +
+  xlab("Date")+
+  ylab("Concentration") + 
+  theme(
+    panel.grid.major.y = element_blank(),
+    panel.grid.major.x = element_line(color = "snow2"),
+    strip.text.x = element_text(color = "#556B2F", face = "bold"),
+    text = element_text(family = "Arial"))
+
+
+# look into distributions/densities
+ggplot(air_dat_long, aes(x = metric, y = Result)) + 
+  ggforce::geom_sina(aes(color = metric)) + 
+  geom_boxplot(width = 0.3, guides = FALSE, outlier.shape = NA, alpha = 0.5, size = 1, color = "#3a3838") + 
+  facet_wrap(~metric, scales = "free") + 
+  theme(legend.position = "none")
+
+#generate density plots 
+ggplot(air_dat_long, aes(x = Result)) + 
+  geom_histogram(aes(y = ..density..),
+                 color = "black",
+                 fill = "white",
+                 bins = 20) +
+  geom_density(fill = "red", alpha = 0.25) + 
+  facet_wrap(~metric, scales = "free")
+
+# get summary table 
+metric_summary <- air_dat_long %>% 
+  group_by(metric) %>% 
+  summarize(min = min(Result),
+            Q1 = quantile(Result, .25),
+            med = median(Result),
+            mean = mean(Result),
+            Q3 = quantile(Result, .75),
+            max = max(Result))
+
+# look at correlations 
+air_dt_time_match <- air_dat_long %>% 
+  select(-recorded) %>% 
+  mutate(hour_match = hour(time),
+         minute_match = minute(time)) %>%
+  select(-time, -Time) %>% 
+  pivot_wider(names_from = "metric", values_from = "Result")
+
+
+hr_avg <- air_dt_time_match %>% 
+  group_by(date, hour_match) %>% 
+  summarize(across(.cols = c("Temperature (F)","Humidity (%)",   
+                             "Pressure (mbar)", "PM10 (mg/m3)", "PM2.5 (mg/m3)" , 
+                             "CO2 (ppm)","VOC (ppb)"), .fns = mean, na.rm = TRUE))
+
+cor.matrix <- cor(hr_avg[,3:9], method = "spearman",
+                         use = "complete.obs")
+
+get_upper_tri <- function(cormat){
+  cormat[lower.tri(cormat)]<- NA
+  return(cormat)
+}
+
+reshape2::melt(get_upper_tri(cor.matrix)) %>%
+  ggplot(aes(x=Var1, y=Var2, fill=value)) + 
+  geom_tile() + 
+  geom_text(aes(label = round(value,2))) + 
+  scale_fill_gradient2(limit = c(-1,1), breaks = c(-1, -.75 ,-.5, -.25, 0, .25,.5, .75, 1), 
+                       low = "#29af7f", high =  "#b8de29", mid = "white", 
+                       name = "Cor value") + 
+  scale_x_discrete(position = "top") +
+  theme(panel.background = element_rect(fill = "white"),
+        axis.text.y = element_text(size=12),
+        axis.title.x = element_text(size=14),
+        axis.title.y = element_text(size=14),
+        legend.text = element_text(size=12)) +
+  xlab("")+
+  ylab("")
 
