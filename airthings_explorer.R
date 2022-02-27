@@ -21,11 +21,18 @@ air_benchmarks <- read_csv("air_benchmarks.csv")
 #clean raw data, deal with date/time string
 air_dat_cleaned <- air_dat %>% 
   clean_names() %>%
-  separate(recorded, sep = "T", into = c("date", "time"), remove = FALSE) %>% 
+  mutate(recorded = str_replace(recorded, "T", " "), 
+         #change the time zone
+         recorded = case_when(str_detect(recorded, "\\d*:\\d*:") ~ 
+                                with_tz(ymd_hms(recorded), tz = "America/New_York"),
+                              str_detect(recorded, "(?<!:)\\d{2}:\\d{2}$") ~ 
+                                with_tz(ymd_hm(recorded), tz = "America/New_York"))
+  ) %>% 
+  separate(recorded, sep = " ", into = c("date", "time"), remove = FALSE) %>% 
   mutate(date = ymd(date),
-         Time = paste0(hour(hms(time)), ":", minute(hms(time))),
-         recorded = ymd_hms(recorded)) %>% 
-  select(-time)
+         time = hms(time),
+         Time = ifelse(minute(time) >= 10, paste0(hour(time), ":", minute(time)),
+                       paste0(hour(time), ":0", minute(time)))) 
 
 
 
@@ -33,7 +40,7 @@ air_dat_cleaned <- air_dat %>%
 air_dat_long <- air_dat_cleaned %>% 
   pivot_longer(names_to = "metric",
                values_to = "Result",
-               -c("recorded", "date", "Time"),
+               -c("recorded", "date", "time", "Time"),
                values_drop_na = TRUE) %>% 
   mutate(metric = factor(metric, levels = c("co2_ppm","pm1_mg_m3", "pm2_5_mg_m3", "pressure_h_pa",
                                     "radon_short_term_avg_p_ci_l", "temp_f", "voc_ppb", "humidity"),
@@ -62,6 +69,7 @@ air_dat_long <- air_dat_cleaned %>%
   #drop first 7 days of VOC and CO2 (calibration period)
   filter(!(metric %in% c("VOC (ppb)", "CO2 (ppm)") & date < c(min(date)+days(7)))) %>% 
   group_by(metric) %>% 
+  #look at the record before and after 
   mutate(rec_prior= lag(recorded, order_by = recorded, 
                         default = min(recorded)),
          rec_after = lead(recorded, order_by = recorded, 
@@ -74,7 +82,15 @@ air_dat_long <- air_dat_cleaned %>%
                      default = min(Result)),
          ymax = lead(Result, order_by = recorded,
                       default = max(Result))
-         )
+         ) %>% 
+  #calculate a rolling average
+  arrange(metric, recorded) %>% 
+  group_by(metric) %>% 
+  mutate(mean_7day = slider::slide_index_dbl(.x = Result, 
+                                             .i = recorded,  
+                                             .f = mean,# use mean()                   
+                                             .before = days(6)# use the day and the 6 days prior
+  ))
 
 
 
@@ -127,9 +143,11 @@ low_pm <- air_dat_long %>%
 
 
 ggplot(low_pm, aes(x = recorded, y = Result)) +
-  #geom_point(aes(x = recorded, y = Result)) + 
-  geom_point(aes(color = flag_nd)) + 
-  geom_path()+
+  geom_path(size = 1, alpha = 0.2)+
+  tidyquant::geom_ma(
+    n = 7,           
+    size = 1,
+    color = "blue")+ 
   facet_wrap(~metric, scales = "free_y") + 
   ggthemes::theme_pander() +
   xlab("Date")+
@@ -140,6 +158,13 @@ ggplot(low_pm, aes(x = recorded, y = Result)) +
     strip.text.x = element_text(color = "#556B2F", face = "bold"),
     text = element_text(family = "Arial"))
 
+#what time of day are peaks most common
+air_dat_long %>% 
+  filter(str_detect(metric, "PM")) %>% 
+  group_by(metric, hour(time)) %>% 
+  summarize(avg = mean(Result)) %>% 
+  pivot_wider(names_from = metric, values_from = avg) %>% 
+  View
 
 # look into distributions/densities
 ggplot(air_dat_long, aes(x = metric, y = Result)) + 
@@ -172,37 +197,51 @@ air_dt_time_match <- air_dat_long %>%
   select(-recorded) %>% 
   mutate(hour_match = hour(time),
          minute_match = minute(time)) %>%
-  select(-time, -Time) %>% 
-  pivot_wider(names_from = "metric", values_from = "Result")
+  select(date, metric, hour_match, minute_match, Result, mean_7day) %>% 
+  pivot_wider(names_from = "metric", values_from = c("Result", "mean_7day"))
 
 
-hr_avg <- air_dt_time_match %>% 
+result_hr_avg <- air_dt_time_match %>% 
   group_by(date, hour_match) %>% 
-  summarize(across(.cols = c("Temperature (F)","Humidity (%)",   
-                             "Pressure (mbar)", "PM10 (mg/m3)", "PM2.5 (mg/m3)" , 
-                             "CO2 (ppm)","VOC (ppb)"), .fns = mean, na.rm = TRUE))
+  summarize(across(.cols = contains("Result"), .fns = mean, na.rm = TRUE))
 
-cor.matrix <- cor(hr_avg[,3:9], method = "spearman",
+cor.matrix_result <- cor(air_dt_time_match[, 3:11], method = "spearman",
+                        use = "complete.obs")
+
+cor.matrix_result_hravg <- cor(result_hr_avg[,3:10], method = "spearman",
                          use = "complete.obs")
 
-get_upper_tri <- function(cormat){
-  cormat[lower.tri(cormat)]<- NA
-  return(cormat)
+cor.matrix_roavg <- cor(air_dt_time_match[, 12:19], method = "spearman",
+                        use = "complete.obs")
+
+get_cor <- function(dat){
+  
+  dat[lower.tri(dat)]<- NA
+  
+  reshape2::melt(dat) %>%
+    ggplot(aes(x=Var1, y=Var2, fill=value)) + 
+    geom_tile() + 
+    geom_text(aes(label = round(value,2))) + 
+    scale_fill_gradient2(limit = c(-1,1), breaks = c(-1, -.75 ,-.5, -.25, 0, .25,.5, .75, 1), 
+                         low = "#29af7f", high =  "#b8de29", mid = "white", 
+                         name = "Cor value") + 
+    scale_x_discrete(position = "top") +
+    theme(panel.background = element_rect(fill = "white"),
+          axis.text.y = element_text(size=12),
+          axis.title.x = element_text(size=14),
+          axis.title.y = element_text(size=14),
+          legend.position = "none") +
+    xlab("")+
+    ylab("")
 }
 
-reshape2::melt(get_upper_tri(cor.matrix)) %>%
-  ggplot(aes(x=Var1, y=Var2, fill=value)) + 
-  geom_tile() + 
-  geom_text(aes(label = round(value,2))) + 
-  scale_fill_gradient2(limit = c(-1,1), breaks = c(-1, -.75 ,-.5, -.25, 0, .25,.5, .75, 1), 
-                       low = "#29af7f", high =  "#b8de29", mid = "white", 
-                       name = "Cor value") + 
-  scale_x_discrete(position = "top") +
-  theme(panel.background = element_rect(fill = "white"),
-        axis.text.y = element_text(size=12),
-        axis.title.x = element_text(size=14),
-        axis.title.y = element_text(size=14),
-        legend.text = element_text(size=12)) +
-  xlab("")+
-  ylab("")
+
+# corr matrix for all raw results with direct matches (ex: must have CO2 and PM measurement at the same time)
+get_cor(cor.matrix_result)
+
+#corr matrix for an hourly average of all measurements (to deal with intermittent testing )
+get_cor(cor.matrix_result_hravg)
+
+#corr matrix using rolling 7 day averages
+get_cor(cor.matrix_roavg)
 
