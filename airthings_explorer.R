@@ -4,21 +4,40 @@
 ### Purpose: work with AirThings data 
 
 
+###############################################################################
+# 0. SETUP  ##################################################################
+###############################################################################
 
-library(tidyverse)
-library(lubridate)
-library(janitor)
+#install.packages("pacman")
+library(pacman)
+#p_load installs package if its not already installed, otherwise loads it
+
+p_load(rstudioapi)
+p_load(tidyverse)
+p_load(lubridate)
+p_load(janitor)
+p_load(ggforce)
+p_load(slider)
+p_load(ggthemes)
+p_load(viridis)
+p_load(tidyquant)
+p_load(reshape2)
+
 
 # set working directory to R script location
-source_file_loc <- dirname(rstudioapi::getActiveDocumentContext()$path)
+source_file_loc <- dirname(getActiveDocumentContext()$path)
 setwd(source_file_loc)
 
+
+###############################################################################
+# 1. LOAD + CLEAN DATA   #####################################################
+###############################################################################
 #read in data (change to location of your file)
 #air_dat <- read.csv("data/2960014368-latest.csv", sep = ";")
 
 air_benchmarks <- read_csv("air_benchmarks.csv") 
 
-#clean raw data, deal with date/time string
+#clean raw data, deal with date/time string and change time zone to EST
 air_dat_cleaned <- air_dat %>% 
   clean_names() %>%
   mutate(recorded = str_replace(recorded, "T", " "), 
@@ -38,7 +57,14 @@ air_dat_cleaned <- air_dat %>%
 #write.csv(air_dat_cleaned, paste0("air_dat_cleaned_", Sys.Date() ,".csv"))
 
 
-#make data long so we can plot it all at once 
+# PROCESSING STEPS FOR air_dat_long: 
+#   1) Make data long so we can plot all of it at once
+#   2) Clean up metrics names
+#   3) Add quality indicator 
+#   4) Drop the first 7 days of VOC and CO2 readings (calibration period)
+#   5) Add cols to investigate measurement before and after 
+#   6) Calculate a 7 day rolling average
+
 air_dat_long <- air_dat_cleaned %>% 
   pivot_longer(names_to = "metric",
                values_to = "Result",
@@ -95,14 +121,16 @@ air_dat_long <- air_dat_cleaned %>%
   ))
 
 
-
+###############################################################################
+# 2. VIZUALIZE MEASUREMENTS   #################################################
+###############################################################################
 
 #create time series plot of all metrics  
 ggplot(air_dat_long, aes(x = recorded, y = Result, color = day(recorded))) + 
   geom_line() + 
-  viridis::scale_color_viridis() + 
+  scale_color_viridis() + 
   facet_wrap(~metric, scales = "free_y") + 
-  ggthemes::theme_pander() +
+  theme_pander() +
   xlab("Date")+
   ylab("Concentration") + 
   theme(legend.position = "none",
@@ -123,7 +151,7 @@ for(i in unique(air_dat_long$metric)){
     #geom_point(aes(color = quality_ind)) +
     geom_path() + 
     facet_wrap(~metric, scales = "free_y") + 
-    ggthemes::theme_pander() +
+    theme_pander() +
     xlab("Date")+
     ylab("Concentration") + 
     theme(panel.grid.major.y = element_blank(),
@@ -135,7 +163,9 @@ for(i in unique(air_dat_long$metric)){
   
 }
 
-
+###############################################################################
+# 3. INVESTIGATE   #####################################################
+###############################################################################
 
 #look at low PM2.5 readings 
 low_pm <- air_dat_long %>% 
@@ -151,7 +181,7 @@ ggplot(low_pm, aes(x = recorded, y = Result)) +
     size = 1,
     color = "blue")+ 
   facet_wrap(~metric, scales = "free_y") + 
-  ggthemes::theme_pander() +
+  theme_pander() +
   xlab("Date")+
   ylab("Concentration") + 
   theme(
@@ -168,14 +198,21 @@ air_dat_long %>%
   pivot_wider(names_from = metric, values_from = avg) %>% 
   View
 
+
+
+###############################################################################
+# 4. SUMMARIZE   ##############################################################
+###############################################################################
+
 # look into distributions/densities
 ggplot(air_dat_long, aes(x = metric, y = Result)) + 
-  ggforce::geom_sina(aes(color = metric)) + 
+  geom_sina(aes(color = metric)) + 
   geom_boxplot(width = 0.3, guides = FALSE, outlier.shape = NA, alpha = 0.5, size = 1, color = "#3a3838") + 
   facet_wrap(~metric, scales = "free") + 
   theme(legend.position = "none")
 
-#generate density plots 
+
+# generate density plots 
 ggplot(air_dat_long, aes(x = Result)) + 
   geom_histogram(aes(y = ..density..),
                  color = "black",
