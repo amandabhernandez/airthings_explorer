@@ -33,7 +33,7 @@ setwd(source_file_loc)
 # 1. LOAD + CLEAN DATA   #####################################################
 ###############################################################################
 #read in data (change to location of your file)
-#air_dat <- read.csv("data/2960014368-latest.csv", sep = ";")
+air_dat <- read.csv("data/2960014368-latest.csv", sep = ";")
 
 air_benchmarks <- read_csv("air_benchmarks.csv") 
 
@@ -54,7 +54,7 @@ air_dat_cleaned <- air_dat %>%
                        paste0(hour(time), ":0", minute(time)))) 
 
 #if you want to just write out the time zone corrected file, you can stop here 
-#write.csv(air_dat_cleaned, paste0("air_dat_cleaned_", Sys.Date() ,".csv"))
+write.csv(air_dat_cleaned, paste0("air_dat_cleaned_", Sys.Date() ,".csv"))
 
 
 # PROCESSING STEPS FOR air_dat_long: 
