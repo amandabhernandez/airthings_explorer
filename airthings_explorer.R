@@ -114,11 +114,9 @@ air_dat_long <- air_dat_cleaned %>%
   #calculate a rolling average
   arrange(metric, recorded) %>% 
   group_by(metric) %>% 
-  mutate(mean_7day = slider::slide_index_dbl(.x = Result, 
-                                             .i = recorded,  
-                                             .f = mean,# use mean()                   
-                                             .before = days(6)# use the day and the 6 days prior
-  ))
+  mutate(mean7day = slider::slide_index_mean(x = Result, i = recorded, before = days(6)),
+         mean24hr = slider::slide_index_mean(x = Result, i = recorded, before = hours(23)),
+         mean1hr = slider::slide_index_mean(x = Result, i = recorded, before = hours(1)))
 
 
 ###############################################################################
@@ -177,7 +175,7 @@ low_pm <- air_dat_long %>%
 ggplot(low_pm, aes(x = recorded, y = Result)) +
   geom_path(size = 1, alpha = 0.2)+
   tidyquant::geom_ma(
-    n = 7,           
+    n = 6,           
     size = 1,
     color = "blue")+ 
   facet_wrap(~metric, scales = "free_y") + 
@@ -236,8 +234,8 @@ air_dt_time_match <- air_dat_long %>%
   select(-recorded) %>% 
   mutate(hour_match = hour(time),
          minute_match = minute(time)) %>%
-  select(date, metric, hour_match, minute_match, Result, mean_7day) %>% 
-  pivot_wider(names_from = "metric", values_from = c("Result", "mean_7day"))
+  select(date, metric, hour_match, minute_match, Result, mean24hr) %>% 
+  pivot_wider(names_from = "metric", values_from = c("Result", "mean24hr"))
 
 
 result_hr_avg <- air_dt_time_match %>% 
@@ -281,6 +279,6 @@ get_cor(cor.matrix_result)
 #corr matrix for an hourly average of all measurements (to deal with intermittent testing )
 get_cor(cor.matrix_result_hravg)
 
-#corr matrix using rolling 7 day averages
+#corr matrix using rolling 24 hr averages
 get_cor(cor.matrix_roavg)
 
