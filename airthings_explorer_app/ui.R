@@ -11,7 +11,7 @@
 dashboardPage(
     
     # Application title
-    dashboardHeader(title = "EH 252 -- Airthings Explorer"),
+    dashboardHeader(title = "Airthings Explorer"),
     
     # Sidebar with a slider input for number of bins
     dashboardSidebar(
@@ -33,10 +33,8 @@ dashboardPage(
                                         end = max(air_dat_long$date),
                                         min = min(air_dat_long$date),
                                         max = max(air_dat_long$date))),
-
-        #uiOutput("metric"),
-        sidebarMenu(menuItem("Dashboard", tabName = "dashboard")),
-        sidebarMenu(menuItem("Metrics", tabname = "metrics", startExpanded = TRUE, 
+        sidebarMenu(menuItem("Dashboard", tabName = "dashboard", icon = icon("thumb-tack"))),
+        sidebarMenu(menuItem("Metrics", tabname = "metrics", icon = icon("area-chart"), startExpanded = TRUE,
                              menuSubItem("Temperature",
                                          tabName = "temp"),
                              menuSubItem("Humidity",
@@ -72,6 +70,8 @@ dashboardPage(
                              infoBoxOutput("pm10_current")
                              ),
                     fluidRow(h3(" Time Series Graphs"), 
+                             uiOutput("metric"),
+                             checkboxInput("roavg", "add rolling average"),
                              plotlyOutput("airplot"))
             ),
             tabItem(tabName = "temp",
