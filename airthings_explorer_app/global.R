@@ -21,7 +21,11 @@ air_dat <- read.csv("../data/2960014368-latest.csv", sep = ";")
 air_dat_cleaned <- air_dat %>% 
   clean_names() %>%
   mutate(recorded = str_replace(recorded, "T", " "), 
-         recorded = with_tz(recorded, tz = "America/New_York")) %>% 
+         recorded = case_when(str_detect(recorded, "\\d*:\\d*:") ~ 
+                                with_tz(ymd_hms(recorded), tz = "America/New_York"),
+                              str_detect(recorded, "(?<!:)\\d{2}:\\d{2}$") ~ 
+                                with_tz(ymd_hm(recorded), tz = "America/New_York"))
+         ) %>% 
   separate(recorded, sep = " ", into = c("date", "time"), remove = FALSE) %>% 
   mutate(date = ymd(date),
          time = hms(time),
@@ -43,7 +47,9 @@ air_dat_long <- air_dat_cleaned %>%
                             metric == "voc_ppb" ~ "VOC (ppb)",
                             metric == "humidity" ~ "Humidity (%)")) %>%  
   #drop first 7 days of VOC and CO2 (calibration period)
-  filter(!(metric %in% c("VOC (ppb)", "CO2 (ppm)") & date < c(min(date)+days(7))))
+  filter(!(metric %in% c("VOC (ppb)", "CO2 (ppm)") & date < c(min(date)+days(7)))) #%>% 
+  # mutate(tod = cut(hour(time), breaks = c(0,12, 24), labels = c("morning", "night"), 
+  #                  include.lowest=TRUE, right = FALSE))
 
 
 table(air_dat_long$metric, air_dat_long$date)
@@ -52,8 +58,7 @@ table(air_dat_long$metric, air_dat_long$date)
 #client_id <- ""
 #client_secret <- ""
 
-client_id <- "89cbf1d1-dcf6-4dd5-9d64-509f4f5b860e"
-client_secret <- "7212b91f-b960-4c70-b1cb-4446d047dda6"
+
 
 app <- httr::oauth_app(appname = "airthings_AH_test",
                        key = client_id,
@@ -104,11 +109,49 @@ air_dt_time_match <- air_dat_long %>%
   select(-time, -Time) %>% 
   pivot_wider(names_from = "metric", values_from = "Result")
 
+###############################################################################
+###### GET TIME RANGE DATA  ##################################################
+###############################################################################
 
+ro_avg <- function(dat){
+  dat %>% 
+    arrange(metric, recorded) %>% 
+    group_by(metric) %>% 
+    mutate(mean7day = slider::slide_index_mean(x = Result, i = recorded, before = days(6)),
+           mean24hr = slider::slide_index_mean(x = Result, i = recorded, before = hours(23)),
+           mean1hr = slider::slide_index_mean(x = Result, i = recorded, before = hours(1)))
+}
+
+#12hr 
+dat_12hr <-  air_dat_long %>%
+  filter(recorded >= max(air_dat_long$recorded)-hours(12)) %>% 
+  ro_avg()
+
+dat_24hr <-   air_dat_long %>%
+  filter(recorded >= max(air_dat_long$recorded) - hours(24))%>% 
+  ro_avg()
+
+dat_36hr <- air_dat_long %>%
+  filter(recorded >= max(air_dat_long$recorded) - hours(36))%>% 
+  ro_avg()
+
+dat_48hr <- air_dat_long %>%
+  filter(recorded >= max(air_dat_long$recorded) - hours(48))%>% 
+  ro_avg()
+
+dat_1wk <- air_dat_long %>%
+  filter(recorded >= max(air_dat_long$recorded)- weeks(1))%>% 
+  ro_avg()
+
+dat_1mo <- air_dat_long %>%
+  filter(recorded >= max(air_dat_long$recorded) - months(1))%>% 
+  ro_avg()
 
 ###############################################################################
 ###### ADD FUNCTIONS FOR INDIV METRIC PAGES ###################################
 ###############################################################################
+
+
 
 time_subplot <- function(ggdat, facet){
   sub_dat <- ggdat %>% 
@@ -119,6 +162,8 @@ time_subplot <- function(ggdat, facet){
                   color = day(recorded),
                   label = Time,
                   label2 = date)) +
+    geom_line(mapping = aes(x = recorded, y = mean7day), 
+              size = 1, color = "#ec7f78", linetype = "dashed") + 
     viridis::scale_color_viridis() +
     facet_wrap(~metric, ncol = 1, scales = "free_y") +
     ggthemes::theme_pander() +
@@ -137,14 +182,14 @@ time_subplot <- function(ggdat, facet){
                                         plot_palette = "#ec7f78")
   
   sub_box <- ggplot(sub_dat) + 
-    geom_boxplot(aes(x = metric, y = Result)) + 
-    # geom_boxplot(air_dat_long %>%
-    #                filter(metric == facet), aes(x = metric, y = Result )) +-
+    geom_boxplot(aes(x = "Current\nRange", y = Result)) + 
+    geom_boxplot(air_dat_long %>%
+                   filter(metric == facet), mapping = aes(x = "All\nMeasurements", y = Result)) +
+    #scale_x_discrete(labels=c(`facet` = , "2" = )) + 
     ggthemes::theme_pander() +
     theme(legend.position = "none",
           panel.grid.major.y = element_blank(),
           panel.grid.major.x = element_line(color = "snow2"), 
-          axis.text.x = element_blank(),
           text = element_text(family = "Arial"))
   
   sub_box_ly <- ggplotly(sub_box)
@@ -180,7 +225,7 @@ comp_xy <- function(ggdat, facet, input){
     select(-recorded) %>% 
     mutate(hour_match = hour(time),
            minute_match = minute(time)) %>%
-    select(-time, -Time) %>% 
+    select(-time, -Time, -mean7day, -mean24hr, -mean1hr) %>% 
     pivot_wider(names_from = "metric", values_from = "Result") %>% 
     select(`facet`, input, date, hour_match, minute_match) %>% 
     rename(x = facet,
