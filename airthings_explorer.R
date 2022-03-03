@@ -35,7 +35,7 @@ setwd(source_file_loc)
 #read in data (change to location of your file)
 air_dat <- read.csv("data/2960014368-latest.csv", sep = ";")
 
-air_benchmarks <- read_csv("air_benchmarks.csv") 
+#air_benchmarks <- read_csv("air_benchmarks.csv") 
 
 #clean raw data, deal with date/time string and change time zone to EST
 air_dat_cleaned <- air_dat %>% 
@@ -63,7 +63,7 @@ write.csv(air_dat_cleaned, paste0("air_dat_cleaned_", Sys.Date() ,".csv"))
 #   3) Add quality indicator 
 #   4) Drop the first 7 days of VOC and CO2 readings (calibration period)
 #   5) Add cols to investigate measurement before and after 
-#   6) Calculate a 7 day rolling average
+#   6) Calculate a rolling average
 
 air_dat_long <- air_dat_cleaned %>% 
   pivot_longer(names_to = "metric",
@@ -116,7 +116,9 @@ air_dat_long <- air_dat_cleaned %>%
   group_by(metric) %>% 
   mutate(mean7day = slider::slide_index_mean(x = Result, i = recorded, before = days(6)),
          mean24hr = slider::slide_index_mean(x = Result, i = recorded, before = hours(23)),
-         mean1hr = slider::slide_index_mean(x = Result, i = recorded, before = hours(1)))
+         mean1hr = slider::slide_index_mean(x = Result, i = recorded, before = hours(1))) %>% 
+  mutate(tod = cut(hour(time), breaks = c(0,12, 24), labels = c("morning", "night"), 
+         include.lowest=TRUE, right = FALSE))
 
 
 ###############################################################################
@@ -147,7 +149,11 @@ for(i in unique(air_dat_long$metric)){
            filter(metric == i), aes(x = recorded, y = Result)) +
     #geom_point(aes(x = recorded, y = Result)) + 
     #geom_point(aes(color = quality_ind)) +
-    geom_path() + 
+    geom_line() + 
+    geom_line(aes(x = recorded, y = mean1hr), color = "#ec7f78", linetype = "dashed") + 
+    geom_rect(aes(xmin = recorded, xmax = recorded, ymin = 0, ymax = Inf, fill = tod),
+              alpha = 0.2)+
+    scale_fill_manual(values = c("firebrick", "blue3")) + 
     facet_wrap(~metric, scales = "free_y") + 
     theme_pander() +
     xlab("Date")+
@@ -171,14 +177,22 @@ low_pm <- air_dat_long %>%
   mutate(flag_nd = case_when(Result <=10 ~ "!",
                              TRUE ~ ""))
 
+pm_avg <- low_pm %>% 
+  group_by(metric, tod) %>% 
+  summarize(pm_mean = mean(Result))
+
 
 ggplot(low_pm, aes(x = recorded, y = Result)) +
-  geom_path(size = 1, alpha = 0.2)+
-  tidyquant::geom_ma(
-    n = 6,           
-    size = 1,
-    color = "blue")+ 
-  facet_wrap(~metric, scales = "free_y") + 
+  geom_path(size = 1, color = "grey")+
+  geom_point(aes(color = tod), alpha = 0.4, size = 0.75) +
+  #geom_hline(pm_avg, mapping = aes(yintercept = pm_mean, color = tod)) + 
+  scale_color_viridis_d(name = "Time of Day", begin = 0.5, end = 0) + 
+  #geom_line(aes(x = recorded, y = mean1hr), linetype = "dashed") + 
+  # tidyquant::geom_ma(
+  #   n = 6,           
+  #   size = 1,
+  #   color = "blue")+ 
+  facet_wrap(~metric, scales = "free_y", ncol= 1) + 
   theme_pander() +
   xlab("Date")+
   ylab("Concentration") + 
@@ -187,6 +201,8 @@ ggplot(low_pm, aes(x = recorded, y = Result)) +
     panel.grid.major.x = element_line(color = "snow2"),
     strip.text.x = element_text(color = "#556B2F", face = "bold"),
     text = element_text(family = "Arial"))
+
+ggsave("PM time series graph.png", height = 4, width = 10, units = "in")
 
 #what time of day are peaks most common
 air_dat_long %>% 
