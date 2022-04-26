@@ -56,8 +56,7 @@ write.csv(air_dat_cleaned, paste0("air_dat_cleaned_", Sys.Date() ,".csv"))
 #   2) Clean up metrics names
 #   3) Add quality indicator 
 #   4) Drop the first 7 days of VOC and CO2 readings (calibration period)
-#   5) Add cols to investigate measurement before and after 
-#   6) Calculate a rolling average
+#   5) Add cols to identify if the measurement is AM/PM
 
 air_dat_long <- air_dat_cleaned %>% 
   pivot_longer(names_to = "metric",
