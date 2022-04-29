@@ -27,6 +27,15 @@ shinyServer(function(input, output) {
     )
   })
   
+  # output$roavg <- renderUI({
+  #   pickerInput("roavg", "Add a rolling average",
+  #               choices = as.list(c("mean1hr", "mean24hr", "mean7day")),
+  #               options = list(`actions-box` = TRUE,
+  #                              title = "Select averaging period(s)"),
+  #               #selected = "none",
+  #               multiple = TRUE)
+  # })
+  
   #filter data based on user input
   dat <- eventReactive(input$date_select, {
     req(input$date_select)
@@ -34,12 +43,12 @@ shinyServer(function(input, output) {
     if(input$date_select == "dates"){
       air_dat_long %>% 
         filter(date >= min(input$date_range) &
-                 date  <= max(input$date_range)) %>% 
-        arrange(metric, recorded) %>% 
-        group_by(metric) %>% 
-        mutate(mean7day = slider::slide_index_mean(x = Result, i = recorded, before = days(6)),
-               mean24hr = slider::slide_index_mean(x = Result, i = recorded, before = hours(23)),
-               mean1hr = slider::slide_index_mean(x = Result, i = recorded, before = hours(1)))
+                 date  <= max(input$date_range)) #%>% 
+        # arrange(metric, recorded) %>% 
+        # group_by(metric) %>% 
+        # mutate(mean7day = slider::slide_index_mean(x = Result, i = recorded, before = days(6)),
+        #        mean24hr = slider::slide_index_mean(x = Result, i = recorded, before = hours(23)),
+        #        mean1hr = slider::slide_index_mean(x = Result, i = recorded, before = hours(1)))
     }
     
     else if(input$date_select == "12hr"){
@@ -205,15 +214,15 @@ shinyServer(function(input, output) {
   
   output$airplot <- renderPlotly({
     req(input$metric)
-    show_dat <- dat() %>% 
-      filter(metric %in% c(input$metric))
-    
-    if(input$roavg == FALSE) {
+    if(is.null(input$roavg)){
+
+      show_dat <- dat() %>% 
+        filter(metric %in% c(input$metric)) 
+      
       air_plot <- ggplot(show_dat, aes(x = recorded, y = Result ,
-                                       color = day(recorded),
                                        label = Time,
                                        label2 = date)) +
-        geom_line(size = 1) +
+        geom_line(aes(color = date), size = 1) +
         viridis::scale_color_viridis(direction = -1) +
         facet_wrap(~metric, ncol = 1, scales = "free_y") +
         ggthemes::theme_pander() +
@@ -224,28 +233,30 @@ shinyServer(function(input, output) {
               panel.grid.major.x = element_line(color = "snow2"),
               strip.text.x = element_text(color = "#556B2F", face = "bold"),
               text = element_text(family = "Arial"))
-
+      
     }
-    else if(input$roavg == TRUE){
+    else{
+      
+      show_dat <- dat() %>% 
+        filter(metric %in% c(input$metric)) %>% 
+        pivot_longer(names_to = "roavg_period", values_to = "mean", cols = contains("mean")) %>% 
+        filter(roavg_period %in% c(input$roavg))
       
       air_plot <- ggplot(show_dat, aes(x = recorded, y = Result ,
-                                       color = day(recorded),
                                        label = Time,
                                        label2 = date)) +
         geom_line(size = 1, alpha = 0.5) +
-        geom_line(mapping = aes(x = recorded, y = mean1hr), 
-                  size = 1, color = "#ec7f78", linetype = "dashed") +
-      viridis::scale_color_viridis(direction = -1) +
+        viridis::scale_color_viridis(discrete = TRUE, begin = 0, end = 0.75) +
+        geom_line(mapping = aes(x = recorded, y = mean, color = roavg_period),
+                  size = 1, linetype = "dashed") +
         facet_wrap(~metric, ncol = 1, scales = "free_y") +
         ggthemes::theme_pander() +
         xlab("Date")+
         ylab("Concentration") +
-        theme(legend.position = "none",
-              panel.grid.major.y = element_blank(),
+        theme( panel.grid.major.y = element_blank(),
               panel.grid.major.x = element_line(color = "snow2"),
               strip.text.x = element_text(color = "#556B2F", face = "bold"),
               text = element_text(family = "Arial"))
-    
       
     }
     
@@ -373,12 +384,12 @@ shinyServer(function(input, output) {
                     color = metric,
                     label = Time,
                     label2 = date)) +
-      geom_line(mapping = aes(x = recorded, y = mean7day), 
-                size = 1, color = "#ec7f78", linetype = "dashed") + 
-      geom_line(mapping = aes(x = recorded, y = mean24hr), 
-                size = 1, color = "grey", linetype = "dashed") + 
-      geom_line(mapping = aes(x = recorded, y = mean1hr), 
-                size = 1, color = "light blue", linetype = "dashed") + 
+      # geom_line(mapping = aes(x = recorded, y = mean7day), 
+      #           size = 1, color = "#ec7f78", linetype = "dashed") + 
+      # geom_line(mapping = aes(x = recorded, y = mean24hr), 
+      #           size = 1, color = "grey", linetype = "dashed") + 
+      # geom_line(mapping = aes(x = recorded, y = mean1hr), 
+      #           size = 1, color = "light blue", linetype = "dashed") + 
       scale_color_manual(values = c("#cf9c2e", "#7ab4b1"))+
       facet_wrap(~metric, ncol = 1, scales = "free_y") +
       ggthemes::theme_pander() +

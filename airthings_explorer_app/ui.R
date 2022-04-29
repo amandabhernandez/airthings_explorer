@@ -71,7 +71,7 @@ dashboardPage(
                              ),
                     fluidRow(h3(" Time Series Graphs"), 
                              uiOutput("metric"),
-                             checkboxInput("roavg", "add rolling average"),
+                             #uiOutput("roavg"),
                              plotlyOutput("airplot"))
             ),
             tabItem(tabName = "temp",
