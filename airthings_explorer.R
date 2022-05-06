@@ -1,5 +1,5 @@
 ### AUTHOR: AHz
-### LAST EDIT: 2022-02-26
+### LAST EDIT: 2022-05-06
 ### WRITTEN IN: R version 4.0.5
 ### Purpose: work with AirThings data 
 
@@ -18,6 +18,7 @@ p_load(lubridate)
 p_load(janitor)
 p_load(ggthemes)
 p_load(viridis)
+p_load(gtsummary)
 
 
 # set working directory to R script location
@@ -151,6 +152,17 @@ for(i in unique(air_dat_long$metric)){
 ###############################################################################
 # 3. SUMMARIZE   ##############################################################
 ###############################################################################
+
+gtsummary::tbl_summary(air_dat_long, 
+                       by = metric,
+                       include = c(Result), 
+                       missing = "no", 
+                       type = all_continuous() ~ "continuous2",
+                       statistic = all_continuous() ~ c(
+                         "{median} ({p25}, {p75})", 
+                         "{min} - {max}"))%>% 
+  as_flex_table()
+
 
 # look into distributions/densities
 ggplot(air_dat_long, aes(x = metric, y = Result)) + 
