@@ -176,35 +176,35 @@ shinyServer(function(input, output) {
   })
   output$pm2.5_current <- renderInfoBox({
     infoBox(
-      value = paste0(current_dat$pm25, " mg/m3"),
+      value = paste0(current_dat$pm25, " ug/m3"),
       title = "PM 2.5",
       icon = fontawesome::fa_i("smog"), 
       color = ifelse(current_dat$pm25 > get_avg.med$Q3[which(get_avg.med$metric == 
-                                                               "PM2.5 (mg/m3)")], "orange",
+                                                               "PM2.5 (ug/m3)")], "orange",
                      ifelse(current_dat$pm25 < get_avg.med$Q1[which(get_avg.med$metric == 
-                                                                      "PM2.5 (mg/m3)")],
+                                                                      "PM2.5 (ug/m3)")],
                             "teal", "olive")),
       subtitle = ifelse(current_dat$pm25 > get_avg.med$Q3[which(get_avg.med$metric == 
-                                                                  "PM2.5 (mg/m3)")], "this is higher than usual",
+                                                                  "PM2.5 (ug/m3)")], "this is higher than usual",
                         ifelse(current_dat$pm25 < get_avg.med$Q1[which(get_avg.med$metric == 
-                                                                         "PM2.5 (mg/m3)")],
+                                                                         "PM2.5 (ug/m3)")],
                                "this is lower than usual", ""))
     )
   })
   output$pm10_current <- renderInfoBox({
     infoBox(
-      value = paste0(current_dat$pm1, " mg/m3"),
+      value = paste0(current_dat$pm1, " ug/m3"),
       title = "PM 10",
       icon = icon("smog"), 
       color = ifelse(current_dat$pm1 > get_avg.med$Q3[which(get_avg.med$metric == 
-                                                              "PM10 (mg/m3)")], "orange",
+                                                              "PM10 (ug/m3)")], "orange",
                      ifelse(current_dat$pm1 < get_avg.med$Q1[which(get_avg.med$metric == 
-                                                                     "PM10 (mg/m3)")],
+                                                                     "PM10 (ug/m3)")],
                             "teal", "olive")),
       subtitle = ifelse(current_dat$pm1 > get_avg.med$Q3[which(get_avg.med$metric == 
-                                                                 "PM10 (mg/m3)")], "this is higher than usual",
+                                                                 "PM10 (ug/m3)")], "this is higher than usual",
                         ifelse(current_dat$pm1 < get_avg.med$Q1[which(get_avg.med$metric == 
-                                                                        "PM10 (mg/m3)")],
+                                                                        "PM10 (ug/m3)")],
                                "this is lower than usual", ""))
     )
   })
@@ -447,7 +447,7 @@ shinyServer(function(input, output) {
     
   })
   output$pm_density <- renderPlotly({
-    dens_plotly(dat(), c("PM2.5 (mg/m3)", "PM10 (mg/m3)"))
+    dens_plotly(dat(), c("PM2.5 (ug/m3)", "PM10 (ug/m3)"))
     
   })
   
@@ -455,33 +455,33 @@ shinyServer(function(input, output) {
     req(input$pm_y_comp)
     
     new_dat <- dat() %>%
-      select(-recorded) %>%
+      select(-recorded) %>% 
       mutate(hour_match = hour(time),
              minute_match = minute(time)) %>%
-      select(-time, -Time, -mean7day, -mean24hr, -mean1hr) %>%
+      select(metric, date, hour_match, minute_match, Result)  %>%
       pivot_wider(names_from = "metric", values_from = "Result") %>%
-      select(`PM2.5 (mg/m3)`,`PM10 (mg/m3)`, input$pm_y_comp, date, hour_match, minute_match) %>%
+      select(`PM2.5 (ug/m3)`,`PM10 (ug/m3)`, input$pm_y_comp, date, hour_match, minute_match) %>%
       rename(y = input$pm_y_comp)
     
     pm <- highlight_key(new_dat)
-    if(!input$pm_y_comp %in% c(c("PM2.5 (mg/m3)", "PM10 (mg/m3)")) ){
-      pm2.5 <- plot_ly(pm, x = ~`PM2.5 (mg/m3)`, y = ~y) %>%
+    if(!input$pm_y_comp %in% c(c("PM2.5 (ug/m3)", "PM10 (ug/m3)")) ){
+      pm2.5 <- plot_ly(pm, x = ~`PM2.5 (ug/m3)`, y = ~y) %>%
         add_markers(showlegend = FALSE) %>% 
         highlight("plotly_selected")
-      pm10 <- plot_ly(pm, x = ~`PM10 (mg/m3)`, y = ~y) %>%
+      pm10 <- plot_ly(pm, x = ~`PM10 (ug/m3)`, y = ~y) %>%
         add_markers(showlegend = FALSE) %>% 
         highlight("plotly_selected")
     }
-    else if(input$pm_y_comp == "PM2.5 (mg/m3)"){
+    else if(input$pm_y_comp == "PM2.5 (ug/m3)"){
       pm2.5 <- plot_ly(pm, x = ~y, y = ~y) %>%
         add_markers(showlegend = FALSE) %>% 
         highlight("plotly_selected")
-      pm10 <- plot_ly(pm, x = ~`PM10 (mg/m3)`, y = ~y) %>%
+      pm10 <- plot_ly(pm, x = ~`PM10 (ug/m3)`, y = ~y) %>%
         add_markers(showlegend = FALSE) %>% 
         highlight("plotly_selected")
     }
-    else if(input$pm_y_comp == "PM10 (mg/m3)"){
-      pm2.5 <- plot_ly(pm, x = ~`PM2.5 (mg/m3)`, y = ~y) %>%
+    else if(input$pm_y_comp == "PM10 (ug/m3)"){
+      pm2.5 <- plot_ly(pm, x = ~`PM2.5 (ug/m3)`, y = ~y) %>%
         add_markers(showlegend = FALSE) %>% 
         highlight("plotly_selected")
       pm10 <- plot_ly(pm, x = ~y, y = ~y) %>%
@@ -496,6 +496,57 @@ shinyServer(function(input, output) {
     
   })
   
+  
+  output$cooking_log <- DT::renderDataTable(
+    cooking_log_shiny, 
+    options = list(pageLength = 10), 
+    rownames= FALSE
+  )
+  
+  # output$cooking_events_TS <- renderPlotly({
+  #   cooking_events_ts_plot <- cooking_plot_dat %>% 
+  #     ggplot() + 
+  #     geom_line(mapping = aes(x = hms::as_hms(recorded), y = Result)) + 
+  #     geom_rect(data=cooking_log, mapping=aes(xmin = hms::as_hms(start_fmt), 
+  #                                             xmax= hms::as_hms(end_fmt), 
+  #                                             ymin=0, ymax=Inf, fill = intervention),
+  #               alpha=0.5) +
+  #     scale_fill_viridis(discrete = TRUE) +
+  #     #scale_x_time(labels = scales::label_time(format = '%H:%M')) +
+  #     scale_x_time(labels = scales::label_time(format = '%H')) +
+  #     facet_grid(rows = vars(metric), cols = vars(event_no), scales = "free")  +
+  #     theme_pander() +
+  #     xlab("Time")+
+  #     ylab("Concentration") + 
+  #     theme(legend.position = "top",
+  #           panel.grid.major.y = element_blank(),
+  #           panel.grid.major.x = element_line(color = "snow2"),
+  #           strip.text.x = element_text(color = "#404040", face = "bold"),
+  #           text = element_text(family = "Arial"))
+  #   
+  #   ggplotly(cooking_events_ts_plot)
+  #   
+  # })
+  
+  output$avg_change <- renderPlotly({
+    avg_change_plot <- ggplot(time_passed) + 
+      geom_line(aes(x = newtime, y = Result, group = event_no, color = intervention), 
+                alpha = 0.4, linetype = "dashed") + 
+      geom_line(avg_time_passed, mapping = aes(x = newtime, y = Result, color = intervention)) + 
+      viridis::scale_color_viridis(discrete = TRUE) + 
+      facet_grid(rows = vars(metric), cols = vars(intervention), scales = "free") + 
+      ggthemes::theme_pander() +
+      xlab("# of minutes")+
+      ylab("Concentration") + 
+      theme(legend.position = "none",
+            panel.grid.major.y = element_blank(),
+            panel.grid.major.x = element_line(color = "snow2"),
+            strip.text.x = element_text(color = "#404040", face = "bold"),
+            text = element_text(family = "Arial"))
+    
+    ggplotly(avg_change_plot)
+    
+  })
   
   
 })

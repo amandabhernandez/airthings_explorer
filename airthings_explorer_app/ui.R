@@ -49,6 +49,9 @@ dashboardPage(
                                          tabName = "voc"),
                              menuSubItem("PM",
                                          tabName = "pm"))),
+        sidebarMenu(menuItem("Cooking events",
+                             tabName = "cooking",
+                             icon = icon("cutlery"))),
         sidebarMenu(menuItem("Source code", 
                              icon = icon("github"), 
                              href = "https://github.com/amandabhernandez/airthings_explorer"))
@@ -134,7 +137,7 @@ dashboardPage(
                                  solidHeader = TRUE),
                              box(width = 6, status = "info", 
                                  solidHeader = TRUE, 
-                                 title = "Distribution of pressure measurements", 
+                                 title = "Distribution of CO2 measurements", 
                                  plotlyOutput("co2_density")),
                              box(width = 6, status = "info",
                                  solidHeader = TRUE,
@@ -151,7 +154,7 @@ dashboardPage(
                                  solidHeader = TRUE),
                              box(width = 6, status = "info", 
                                  solidHeader = TRUE, 
-                                 title = "Distribution of pressure measurements", 
+                                 title = "Distribution of VOC measurements", 
                                  plotlyOutput("voc_density")),
                              box(width = 6, status = "info",
                                  solidHeader = TRUE,
@@ -168,7 +171,7 @@ dashboardPage(
                                  solidHeader = TRUE),
                              box(width = 6, status = "info", 
                                  solidHeader = TRUE, 
-                                 title = "Distribution of pressure measurements", 
+                                 title = "Distribution of PM measurements", 
                                  plotlyOutput("pm_density")),
                              box(width = 6, status = "info",
                                  solidHeader = TRUE,
@@ -178,8 +181,19 @@ dashboardPage(
                                              options = list(`actions-box` = TRUE,
                                                             title = "Select"),
                                              multiple = FALSE),
-                                 plotlyOutput("pm_xy"))))
+                                 plotlyOutput("pm_xy")))),
+            tabItem(tabName = "cooking",
+                    fluidRow(box(title = "Cooking events + IAQ", width = 12, 
+                                 status = "primary", solidHeader = TRUE,
+                                 DT::dataTableOutput("cooking_log")),
+                             # box(title = "Cooking events time series", width = 12, 
+                             #     status = "primary", solidHeader = TRUE,
+                             #     plotlyOutput("cooking_events_TS")),
+                             box(title = "Avg change over capture window", width = 12, 
+                                 status = "primary", solidHeader = TRUE,
+                                 plotlyOutput("avg_change"))))
             )
+        
     )
     
 )
