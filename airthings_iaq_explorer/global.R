@@ -1,3 +1,9 @@
+### AUTHOR: AHz
+### LAST EDIT: 2022-05-07
+### WRITTEN IN: R version 4.0.5
+### Purpose: AirThings custom dashboard
+
+
 library(tidyverse)
 library(lubridate)
 library(shiny)
