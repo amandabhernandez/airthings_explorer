@@ -9,61 +9,25 @@ library(lubridate)
 library(shiny)
 library(shinythemes)
 library(shinyWidgets)
-library(plotly)
 library(shinydashboard)
 library(janitor)
-library(httr)
+library(plotly)
 library(fontawesome)
-library(crosstalk)
+
 
 
 # load and clean data
+# 
+# air_dat <- read.csv("data/2960014368-latest.csv", sep = ";")
 
-air_dat <- read.csv("../data/2960014368-latest.csv", sep = ";")
 
-
-
-air_dat_cleaned <- air_dat %>% 
-  clean_names() %>%
-  mutate(recorded = str_replace(recorded, "T", " "), 
-         recorded = case_when(str_detect(recorded, "\\d*:\\d*:") ~ 
-                                with_tz(ymd_hms(recorded), tz = "America/New_York"),
-                              str_detect(recorded, "(?<!:)\\d{2}:\\d{2}$") ~ 
-                                with_tz(ymd_hm(recorded), tz = "America/New_York"))
-         ) %>% 
+air_dat_long <- read.csv("data/air_dat_long.csv") %>% 
+  mutate(recorded = with_tz(ymd_hms(recorded), tz = "America/New_York")) %>% 
   separate(recorded, sep = " ", into = c("date", "time"), remove = FALSE) %>% 
   mutate(date = ymd(date),
-         time = hms(time),
-         Time = ifelse(minute(time) >= 10, paste0(hour(time), ":", minute(time)),
-                       paste0(hour(time), ":0", minute(time)))) 
-
-
-air_dat_long <- air_dat_cleaned %>% 
-  pivot_longer(names_to = "metric",
-               values_to = "Result",
-               -c("recorded", "date", "time", "Time"),
-               values_drop_na = TRUE) %>% 
-  mutate(metric = case_when(metric == "co2_ppm" ~ "CO2 (ppm)",
-                            metric == "pm1_mg_m3" ~ "PM10 (ug/m3)",
-                            metric == "pm2_5_mg_m3" ~ "PM2.5 (ug/m3)",
-                            metric == "pressure_h_pa" ~ "Pressure (mbar)",
-                            metric == "radon_short_term_avg_p_ci_l" ~ "Radon (pCi/L)",
-                            metric == "temp_f" ~ "Temperature (F)",
-                            metric == "voc_ppb" ~ "VOC (ppb)",
-                            metric == "humidity" ~ "Humidity (%)")) %>%  
-  #drop first 7 days of VOC and CO2 (calibration period)
-  filter(!(metric %in% c("VOC (ppb)", "CO2 (ppm)") & date < c(min(date)+days(7)))) %>% 
-  group_by(metric) %>% 
-  #look at the record before and after 
-  mutate(rec_prior= lag(recorded, order_by = recorded, 
-                        default = min(recorded)),
-         rec_after = lead(recorded, order_by = recorded, 
-                          default = max(recorded)),
+         time = hms(time), 
          intrvl = interval(rec_prior, rec_after),
-         dif = as.duration(intrvl)/2
-  ) 
-
-
+         dif = as.duration(intrvl)/2 )
 
 
 
@@ -189,7 +153,7 @@ comp_xy <- function(ggdat, facet, input){
   ggplotly(xy_plot)
 }
 
-cooking_log <- readxl::read_xlsx("../data/cooking log.xlsx") %>% 
+cooking_log <- readxl::read_xlsx("data/cooking log.xlsx") %>% 
   filter(!is.na(fan)) %>% 
   rownames_to_column(var = "event_no") %>%
   mutate(event_no = factor(event_no, levels=unique(.$event_no)),

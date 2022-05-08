@@ -1,14 +1,15 @@
 ### AUTHOR: AHz
 ### LAST EDIT: 2022-05-07
 ### WRITTEN IN: R version 4.0.5
-### Purpose: AirThings custom dashboard
-
+### Purpose: AirThings Explorer dashboard
 
 
 dashboardPage(
-    
+
     # Application title
     dashboardHeader(title = "Airthings Explorer"),
+    
+    
     
     # Sidebar with a slider input for number of bins
     dashboardSidebar(
@@ -19,7 +20,8 @@ dashboardPage(
                                 "36 hours" = "36hr",
                                 "48 hours" = "48hr", 
                                 "1 week" = "1wk", 
-                                "1 month" = "1mo"),
+                                #"1 month" = "1mo"
+                                ),
                     selected = "1wk", 
                     options = list(`actions-box` = TRUE,
                                    title = "Select"),
@@ -59,6 +61,7 @@ dashboardPage(
     dashboardBody(
         tabItems(
             tabItem(tabName = "dashboard",
+                    tags$head(includeHTML(("google-analytics.html"))),
                     fluidRow(h3(" Median of Measurements"),
                              p("Median of all measurements in the currently selected time range"),
                              infoBoxOutput("temp_current"),

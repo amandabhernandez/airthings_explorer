@@ -1,0 +1,14 @@
+name: airthings_iaq_explorer
+title: airthings_iaq_explorer
+username:
+account: abhz
+server: shinyapps.io
+hostUrl: https://api.shinyapps.io/v1
+appId: 6256603
+bundleId: 5882711
+url: https://abhz.shinyapps.io/airthings_iaq_explorer/
+when: 1651978903.84204
+lastSyncTime: 1651978903.84206
+asMultiple: FALSE
+asStatic: FALSE
+ignoredFiles: data/2960014368-latest.csv
