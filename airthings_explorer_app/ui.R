@@ -49,7 +49,7 @@ dashboardPage(
                                          tabName = "voc"),
                              menuSubItem("PM",
                                          tabName = "pm"))),
-        sidebarMenu(menuItem("Cooking events",
+        sidebarMenu(menuItem("Cooking events + IAQ",
                              tabName = "cooking",
                              icon = icon("cutlery"))),
         sidebarMenu(menuItem("Source code", 
@@ -62,7 +62,8 @@ dashboardPage(
     dashboardBody(
         tabItems(
             tabItem(tabName = "dashboard",
-                    fluidRow(h3(" Current Measurements"),
+                    fluidRow(h3(" Median of Measurements"),
+                             p("Median of all measurements in the currently selected time range"),
                              infoBoxOutput("temp_current"),
                              infoBoxOutput("humidity_current"),
                              infoBoxOutput("pressure_current"),
@@ -183,7 +184,7 @@ dashboardPage(
                                              multiple = FALSE),
                                  plotlyOutput("pm_xy")))),
             tabItem(tabName = "cooking",
-                    fluidRow(box(title = "Cooking events + IAQ", width = 12, 
+                    fluidRow(box(title = "Cooking events", width = 12, 
                                  status = "primary", solidHeader = TRUE,
                                  DT::dataTableOutput("cooking_log")),
                              # box(title = "Cooking events time series", width = 12, 

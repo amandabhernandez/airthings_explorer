@@ -60,103 +60,35 @@ air_dat_long <- air_dat_cleaned %>%
 
 
 
-#client_id <- ""
-#client_secret <- ""
-client_id <- "89cbf1d1-dcf6-4dd5-9d64-509f4f5b860e"
-client_secret <- "7212b91f-b960-4c70-b1cb-4446d047dda6"
 
-
-app <- httr::oauth_app(appname = "airthings_AH_test",
-                       key = client_id,
-                       secret = client_secret,
-                       redirect_uri = "")
-
-endpoint <-  httr::oauth_endpoint(
-  request = NULL,
-  authorize = "https://accounts.airthings.com/authorize",
-  access = "https://accounts-api.airthings.com/v1/token")
-
-token <- httr::oauth2.0_token(endpoint = endpoint,
-                              app = app,
-                              client_credentials = TRUE,
-                              scope = "read:device:current_values",
-                              use_basic_auth = TRUE, cache = FALSE)
-
-
-request <- httr::GET("https://ext-api.airthings.com/v1/devices/2960014368/latest-samples",
-                     accept_json(),
-                     #add_headers(Authorization = paste("Bearer", client_secret, sep = " ")),
-                     httr::config(token = token))
-
-raw_current <- data.frame(content(request, "parsed")) 
-
-names(raw_current) <- c(str_remove(names(raw_current), "data."))
-
-current_dat <- raw_current %>% 
-  mutate(time = with_tz(as_datetime(time), tz = "America/New_York"),
-         temp =  (9/5) * temp + 32) #%>% 
-  # select(-relayDeviceType) %>% 
-  # pivot_longer(names_to = "metric", values_to = "result",-time)
-
-#set boundaries for current measurement rules
-
-get_avg.med <- air_dat_long %>% 
-  group_by(metric) %>% 
-  summarize(med = median(Result),
-            avg = mean(Result), 
-            Q3 = quantile(Result, .75),
-            Q1 = quantile(Result, .25))
-
-#wide data for the XY comparison plots 
-air_dt_time_match <- air_dat_long %>% 
-  select(-recorded) %>% 
-  mutate(hour_match = hour(time),
-         minute_match = minute(time)) %>%
-  select(-time, -Time) %>% 
-  pivot_wider(names_from = "metric", values_from = "Result")
 
 ###############################################################################
 ###### GET TIME RANGE DATA  ##################################################
 ###############################################################################
 
-# ro_avg <- function(dat){
-#   dat %>% 
-#     arrange(metric, recorded) %>% 
-#     group_by(metric) %>% 
-#     mutate(mean7day = slider::slide_index_mean(x = Result, i = recorded, before = days(6)),
-#            mean24hr = slider::slide_index_mean(x = Result, i = recorded, before = hours(23)),
-#            mean1hr = slider::slide_index_mean(x = Result, i = recorded, before = hours(1)))
-# }
 
 #12hr 
 dat_12hr <-  air_dat_long %>%
-  filter(recorded >= max(air_dat_long$recorded)-hours(12)) #%>% 
-  #ro_avg()
+  filter(recorded >= max(air_dat_long$recorded)-hours(12)) 
 
 dat_24hr <-   air_dat_long %>%
-  filter(recorded >= max(air_dat_long$recorded) - hours(24)) #%>% 
-  #ro_avg()
+  filter(recorded >= max(air_dat_long$recorded) - hours(24)) 
 
 dat_36hr <- air_dat_long %>%
-  filter(recorded >= max(air_dat_long$recorded) - hours(36)) #%>% 
-  #ro_avg()
+  filter(recorded >= max(air_dat_long$recorded) - hours(36)) 
 
 dat_48hr <- air_dat_long %>%
-  filter(recorded >= max(air_dat_long$recorded) - hours(48)) #%>% 
-  #ro_avg()
+  filter(recorded >= max(air_dat_long$recorded) - hours(48)) 
 
 dat_1wk <- air_dat_long %>%
-  filter(recorded >= max(air_dat_long$recorded)- weeks(1)) #%>% 
-  #ro_avg()
+  filter(recorded >= max(air_dat_long$recorded)- weeks(1)) 
 
 dat_1mo <- air_dat_long %>%
-  filter(recorded >= max(air_dat_long$recorded) - months(1)) #%>% 
-  #ro_avg()
+  filter(recorded >= max(air_dat_long$recorded) - months(1))
 
 ###############################################################################
 ###### ADD FUNCTIONS FOR INDIV METRIC PAGES ###################################
 ###############################################################################
-
 
 
 time_subplot <- function(ggdat, facet){

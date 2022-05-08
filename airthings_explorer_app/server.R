@@ -78,134 +78,134 @@ shinyServer(function(input, output) {
     
   })
   
+  
+  current_dat <- reactive(dat() %>% 
+    group_by(metric) %>% 
+    summarize(med = median(Result)) %>% 
+    pivot_wider(names_from = "metric", values_from = "med"))
+  
+  
   # icons from https://fontawesome.com/v4/icons/
   output$temp_current <- renderInfoBox({
+    current_dat_box <- current_dat()
     infoBox(
-      value = paste0(current_dat$temp, "°F"),
+      value = paste0(current_dat_box$`Temperature (F)`, "°F"),
       title = "Temperature",
       icon = icon("thermometer-half"),
-      color = ifelse(current_dat$temp > get_avg.med$Q3[which(get_avg.med$metric == 
-                                                               "Temperature (F)")], "orange",
-                     ifelse(current_dat$temp < get_avg.med$Q1[which(get_avg.med$metric == 
-                                                                      "Temperature (F)")],
-                            "teal", "olive")),
-      subtitle = ifelse(current_dat$temp > get_avg.med$Q3[which(get_avg.med$metric == 
-                                                                  "Temperature (F)")], "it's warmer than usual",
-                        ifelse(current_dat$temp < get_avg.med$Q1[which(get_avg.med$metric == 
-                                                                         "Temperature (F)")],
-                               "it's colder than usual", ""))
+      color = "blue"
+      # color = ifelse(current_dat$temp > get_avg.med$Q3[which(get_avg.med$metric == 
+      #                                                          "Temperature (F)")], "orange",
+      #                ifelse(current_dat$temp < get_avg.med$Q1[which(get_avg.med$metric == 
+      #                                                                 "Temperature (F)")],
+      #                       "teal", "olive")),
+      # subtitle = ifelse(current_dat$temp > get_avg.med$Q3[which(get_avg.med$metric == 
+      #                                                             "Temperature (F)")], "it's warmer than usual",
+      #                   ifelse(current_dat$temp < get_avg.med$Q1[which(get_avg.med$metric == 
+      #                                                                    "Temperature (F)")],
+      #                          "it's colder than usual", ""))
     )
   })
   
   output$humidity_current <- renderInfoBox({
+    current_dat_box <- current_dat()
     infoBox(
-      value = paste0(current_dat$humidity, "%"),
+      value = paste0(current_dat_box$`Humidity (%)`, "%"),
       title = "Humidity",
       icon = icon("tint"), 
-      color = ifelse(current_dat$humidity > get_avg.med$Q3[which(get_avg.med$metric == 
-                                                                   "Humidity (%)")], "orange",
-                     ifelse(current_dat$humidity < get_avg.med$Q1[which(get_avg.med$metric == 
-                                                                          "Humidity (%)")],
-                            "teal", "olive")),
-      subtitle = ifelse(current_dat$humidity > get_avg.med$Q3[which(get_avg.med$metric == 
-                                                                      "Humidity (%)")], "it's more humid than usual",
-                        ifelse(current_dat$humidity < get_avg.med$Q1[which(get_avg.med$metric == 
-                                                                             "Humidity (%)")],
-                               "it's less humid than usual", ""))
+      color = case_when(current_dat_box$`Humidity (%)` >= 60 & current_dat_box$`Humidity (%)` < 70 ~ "teal",
+                        current_dat_box$`Humidity (%)` >= 30 & current_dat_box$`Humidity (%)` < 60 ~ "olive",
+                        current_dat_box$`Humidity (%)` >= 25 & current_dat_box$`Humidity (%)` < 30 ~ "teal",
+                        current_dat_box$`Humidity (%)`< 25 ~ "orange"),
+      subtitle = case_when(current_dat_box$`Humidity (%)` >= 60 & current_dat_box$`Humidity (%)` < 70 ~ "Fair",
+                           current_dat_box$`Humidity (%)` >= 30 & current_dat_box$`Humidity (%)` < 60 ~ "Good",
+                           current_dat_box$`Humidity (%)` >= 25 & current_dat_box$`Humidity (%)` < 30 ~ "Fair",
+                           current_dat_box$`Humidity (%)`< 25 ~ "Low")
     )
   })
   
   output$pressure_current <- renderInfoBox({
+    current_dat_box <- current_dat()
     infoBox(
-      value = paste0(current_dat$pressure, " hPa"),
+      value = paste0(current_dat_box$`Pressure (mbar)`, " hPa"),
       title = "Pressure",
       icon = icon("tachometer"), 
-      color = ifelse(current_dat$pressure > get_avg.med$Q3[which(get_avg.med$metric == 
-                                                                   "Pressure (mbar)")], "orange",
-                     ifelse(current_dat$pressure < get_avg.med$Q1[which(get_avg.med$metric == 
-                                                                          "Pressure (mbar)")],
-                            "teal", "olive")),
-      subtitle = ifelse(current_dat$pressure > get_avg.med$Q3[which(get_avg.med$metric == 
-                                                                      "Pressure (mbar)")], "the pressure is higher than usual",
-                        ifelse(current_dat$pressure < get_avg.med$Q1[which(get_avg.med$metric == 
-                                                                             "Pressure (mbar)")],
-                               "the pressure is lower than usual", ""))
+      color = "blue"
     )
   })
   output$radon_current <- renderInfoBox({
+    current_dat_box <- current_dat()
     infoBox(
-      value = paste0(current_dat$radonShortTermAvg, " pCi/L"),
+      value = paste0(current_dat_box$`Radon (pCi/L)`, " pCi/L"),
       title = "Radon (short term avg)",
       icon = fontawesome::fa_i("radiation"), 
-      color = "teal"
+      color = case_when(current_dat_box$`Radon (pCi/L)` <= 2.6 ~ "olive",
+                        current_dat_box$`Radon (pCi/L)` < 4 ~ "teal",
+                        current_dat_box$`Radon (pCi/L)` >= 4 ~ "orange"),
+      subtitle = case_when(current_dat_box$`Radon (pCi/L)` <= 2.6 ~ "Good",
+                        current_dat_box$`Radon (pCi/L)` < 4 ~ "Fair",
+                        current_dat_box$`Radon (pCi/L)` >= 4 ~ "Poor")
     )
+    
   })
   output$co2_current <- renderInfoBox({
+    current_dat_box <- current_dat()
     infoBox(
-      value = paste0(current_dat$co2, " ppm"),
+      value = paste0(current_dat_box$`CO2 (ppm)`, " ppm"),
       title = "CO2",
       icon = icon("cloud"), 
-      color = ifelse(current_dat$co2 > get_avg.med$Q3[which(get_avg.med$metric == 
-                                                              "CO2 (ppm)")], "orange",
-                     ifelse(current_dat$co2 < get_avg.med$Q1[which(get_avg.med$metric == 
-                                                                     "CO2 (ppm)")],
-                            "teal", "olive")),
-      subtitle = ifelse(current_dat$co2 > get_avg.med$Q3[which(get_avg.med$metric == 
-                                                                 "CO2 (ppm)")], "this is higher than usual",
-                        ifelse(current_dat$co2 < get_avg.med$Q1[which(get_avg.med$metric == 
-                                                                        "CO2 (ppm)")],
-                               "this is lower than usual", ""))
+      color = case_when(current_dat_box$`CO2 (ppm)` < 400 ~ "olive",
+                        current_dat_box$`CO2 (ppm)` >= 400 & current_dat_box$`CO2 (ppm)` < 1000 ~ "teal",
+                        current_dat_box$`CO2 (ppm)` >= 1000 & current_dat_box$`CO2 (ppm)` < 2000 ~ "yellow",
+                        current_dat_box$`CO2 (ppm)` >= 2000 & current_dat_box$`CO2 (ppm)` < 5000 ~ "orange",
+                        current_dat_box$`CO2 (ppm)` >= 5000  ~ "red"),
+      subtitle = case_when(current_dat_box$`CO2 (ppm)` < 400 ~ "Background",
+                        current_dat_box$`CO2 (ppm)` >= 400 & current_dat_box$`CO2 (ppm)` < 1000 ~ "Fair",
+                        current_dat_box$`CO2 (ppm)` >= 1000 & current_dat_box$`CO2 (ppm)` < 2000 ~ "Poor",
+                        current_dat_box$`CO2 (ppm)` >= 2000 & current_dat_box$`CO2 (ppm)` < 5000 ~ "High",
+                        current_dat_box$`CO2 (ppm)` >= 5000  ~ "Extreme")
+
     )
   })
   output$voc_current <- renderInfoBox({
+    current_dat_box <- current_dat()
     infoBox(
-      value = paste0(current_dat$voc, " ppb"),
+      value = paste0(current_dat_box$`VOC (ppb)`, " ppb"),
       title = "VOCs",
       icon = fontawesome::fa_i("wind"), 
-      color = ifelse(current_dat$voc > get_avg.med$Q3[which(get_avg.med$metric == 
-                                                              "VOC (ppb)")], "orange",
-                     ifelse(current_dat$voc < get_avg.med$Q1[which(get_avg.med$metric == 
-                                                                     "VOC (ppb)")],
-                            "teal", "olive")),
-      subtitle = ifelse(current_dat$voc > get_avg.med$Q3[which(get_avg.med$metric == 
-                                                                 "VOC (ppb)")], "this is higher than usual",
-                        ifelse(current_dat$voc < get_avg.med$Q1[which(get_avg.med$metric == 
-                                                                        "VOC (ppb)")],
-                               "this is lower than usual", ""))
+      color = case_when(current_dat_box$`VOC (ppb)`< 250 ~ "olive",
+                        current_dat_box$`VOC (ppb)` >= 250 & current_dat_box$`VOC (ppb)` < 2000 ~ "teal",
+                        current_dat_box$`VOC (ppb)` >= 2000 ~ "orange"),
+      subtitle = case_when(current_dat_box$`VOC (ppb)`< 250 ~ "Low",
+                        current_dat_box$`VOC (ppb)` >= 250 & current_dat_box$`VOC (ppb)` < 2000 ~ "Med",
+                        current_dat_box$`VOC (ppb)` >= 2000 ~ "High")
     )
   })
   output$pm2.5_current <- renderInfoBox({
+    current_dat_box <- current_dat()
     infoBox(
-      value = paste0(current_dat$pm25, " ug/m3"),
+      value = paste0(current_dat_box$`PM2.5 (ug/m3)`, " ug/m3"),
       title = "PM 2.5",
       icon = fontawesome::fa_i("smog"), 
-      color = ifelse(current_dat$pm25 > get_avg.med$Q3[which(get_avg.med$metric == 
-                                                               "PM2.5 (ug/m3)")], "orange",
-                     ifelse(current_dat$pm25 < get_avg.med$Q1[which(get_avg.med$metric == 
-                                                                      "PM2.5 (ug/m3)")],
-                            "teal", "olive")),
-      subtitle = ifelse(current_dat$pm25 > get_avg.med$Q3[which(get_avg.med$metric == 
-                                                                  "PM2.5 (ug/m3)")], "this is higher than usual",
-                        ifelse(current_dat$pm25 < get_avg.med$Q1[which(get_avg.med$metric == 
-                                                                         "PM2.5 (ug/m3)")],
-                               "this is lower than usual", ""))
+      color = case_when(current_dat_box$`PM2.5 (ug/m3)` < 10 ~ "olive",
+                        current_dat_box$`PM2.5 (ug/m3)` >= 10 & current_dat_box$`PM2.5 (ug/m3)` < 25 ~ "teal",
+                        current_dat_box$`PM2.5 (ug/m3)` >=25 ~ "orange"),
+      subtitle = case_when(current_dat_box$`PM2.5 (ug/m3)` < 10 ~ "Good",
+                        current_dat_box$`PM2.5 (ug/m3)` >= 10 & current_dat_box$`PM2.5 (ug/m3)` < 25 ~ "Fair",
+                        current_dat_box$`PM2.5 (ug/m3)` >=25 ~ "Poor")
     )
   })
   output$pm10_current <- renderInfoBox({
+    current_dat_box <- current_dat()
     infoBox(
-      value = paste0(current_dat$pm1, " ug/m3"),
+      value = paste0(current_dat_box$`PM10 (ug/m3)`, " ug/m3"),
       title = "PM 10",
       icon = icon("smog"), 
-      color = ifelse(current_dat$pm1 > get_avg.med$Q3[which(get_avg.med$metric == 
-                                                              "PM10 (ug/m3)")], "orange",
-                     ifelse(current_dat$pm1 < get_avg.med$Q1[which(get_avg.med$metric == 
-                                                                     "PM10 (ug/m3)")],
-                            "teal", "olive")),
-      subtitle = ifelse(current_dat$pm1 > get_avg.med$Q3[which(get_avg.med$metric == 
-                                                                 "PM10 (ug/m3)")], "this is higher than usual",
-                        ifelse(current_dat$pm1 < get_avg.med$Q1[which(get_avg.med$metric == 
-                                                                        "PM10 (ug/m3)")],
-                               "this is lower than usual", ""))
+      color = case_when(current_dat_box$`PM2.5 (ug/m3)` < 10 ~ "olive",
+                        current_dat_box$`PM2.5 (ug/m3)` >= 10 & current_dat_box$`PM2.5 (ug/m3)` < 25 ~ "teal",
+                        current_dat_box$`PM2.5 (ug/m3)` >=25 ~ "orange"),
+      subtitle = case_when(current_dat_box$`PM2.5 (ug/m3)` < 10 ~ "Good",
+                           current_dat_box$`PM2.5 (ug/m3)` >= 10 & current_dat_box$`PM2.5 (ug/m3)` < 25 ~ "Fair",
+                           current_dat_box$`PM2.5 (ug/m3)` >=25 ~ "Poor")
     )
   })
   
