@@ -113,6 +113,8 @@ air_dat_wide <- air_dat_long %>%
 # 2. SUMMARY STATS  ##########################################################
 ###############################################################################
 
+lubridate::as.duration(interval(min(air_dat_long$date), max(air_dat_long$date)))
+
 tbl_summary(air_dat_wide, 
             include = c(-hour_match, -minute_match, -date), 
             missing = "no", 
@@ -236,7 +238,8 @@ cooking_log <- readxl::read_xlsx("data/cooking log.xlsx") %>%
          intrvl = interval(start_fmt, end_fmt, tzone = "EST"),
          intrvl_shft_start = int_start(int_shift(intrvl, duration(hour = c(-3)))),
          intrvl_shft_end = int_end(int_shift(intrvl, duration(hour = c(3)))),
-         intrvl_shft = interval(intrvl_shft_start, intrvl_shft_end)) %>% 
+         intrvl_shft = interval(start_fmt, intrvl_shft_end),
+         intrvl_ext = interval(intrvl_shft_start, intrvl_shft_end)) %>% 
   mutate(intervention = case_when(tolower(fan) == "yes" & tolower(window) == "open" ~ "fan + window",
                                   tolower(fan) == "yes" ~ "fan only",
                                   tolower(window) == "open" ~ "window only",
@@ -251,15 +254,21 @@ cooking_log <- readxl::read_xlsx("data/cooking log.xlsx") %>%
                                                               "fan only",
                                                               "window open"))) 
 
+lubridate::as.duration(interval(min(cooking_log$date), max(cooking_log$date)))
+
 cooking_plot_dat <- air_dat_long %>% 
   filter(metric %in% c("CO2 (ppm)", "PM10 (ug/m3)", "PM2.5 (ug/m3)")) %>% 
   mutate(metric = factor(metric)) %>% 
   filter(as_date(date) %in% c(cooking_log$date)) %>% 
   left_join(cooking_log, by = c("date")) %>% 
   group_by(recorded) %>% 
-  mutate(keep = case_when(time >= start_shift & time <= end_shift ~ "yes",
+  mutate(keep = case_when(time >= start & time <= end_shift ~ "yes",
+                              TRUE ~ "no"),
+         keep_ext = case_when(time >= start_shift & time <= end_shift ~ "yes",
                           TRUE ~ "no")) %>% 
-  filter(keep == "yes")
+  filter(keep_ext == "yes")
+
+
 
 ###############################################################################
 # 6. INTERVENTION SUMMARY STATS ###############################################
@@ -284,7 +293,8 @@ flextable(cooking_summary, cwidth = 2) %>%
   set_caption(caption = "Summary of cooking events") 
 
 
-cooking_iaq_summ <- tbl_summary(cooking_plot_dat, by = c(metric), include = Result,
+cooking_iaq_summ <- tbl_summary(cooking_plot_dat %>% 
+                                  filter(keep == "yes") , by = c(metric), include = Result,
                                label = c(Result ~ "All cooking events"), 
                                type = all_continuous() ~ "continuous2",
                                statistic = all_continuous() ~ 
@@ -293,7 +303,10 @@ cooking_iaq_summ <- tbl_summary(cooking_plot_dat, by = c(metric), include = Resu
                                    "{min} - {max}")) 
 
 
+
+
 cooking_plot_wide <- cooking_plot_dat %>% 
+  filter(keep == "yes") %>% 
   ungroup() %>% 
   select(-recorded) %>% 
   mutate(hour_match = hour(time),
@@ -315,7 +328,10 @@ gtsummary::tbl_stack(list(cooking_iaq_summ, int_summary))%>%
   as_flex_table() %>%
   set_caption(caption = "Summary of IAQ during cooking events by intervention type")
 
-ggplot(cooking_plot_dat, aes(x = intervention, y = Result, color = intervention)) + 
+
+
+ggplot(cooking_plot_dat %>% 
+         filter(keep == "yes"), aes(x = intervention, y = Result, color = intervention)) + 
   ggforce::geom_sina(alpha = 0.5) + 
   geom_boxplot(width = 0.3, guides = FALSE, outlier.shape = NA, alpha = 0.5, size = 1, color = "#3a3838") + 
   facet_wrap(~metric, scales = "free_y") + 
@@ -333,6 +349,7 @@ ggsave("plots/cooking events sina plots.png", height = 9, width = 16, units = "i
 
 
 cooking_plot_dat_duration <- cooking_plot_dat %>% 
+  filter(keep == "yes") %>% 
   group_by(event_no, date, metric, intervention) %>% 
   summarize(start = min(recorded),
             max = max(recorded),
@@ -345,21 +362,6 @@ cooking_plot_dat_duration <- cooking_plot_dat %>%
                          labels = c("Cooking begins", "Cooking ends", "3hrs after cooking", "change")))
 
 
-# ggplot(cooking_plot_dat_duration %>% 
-#          filter(period != "change"), aes(x = intervention, y = Result, fill = period)) + 
-#   geom_bar(stat = "summary", fun.y = "mean", position = "dodge") + 
-#   facet_grid(metric ~ intervention, scales = "free", switch = "x") + 
-#   #facet_wrap(~metric, scales = "free_y") + 
-#   scale_fill_viridis(discrete = TRUE, option = "mako", begin = 0.25, end = 0.75) + 
-#   theme_pander() +
-#   xlab("Intervention")+
-#   ylab("Avg Concentration") + 
-#   theme(legend.position = "top",
-#         legend.title = element_blank(), 
-#         axis.text.x = element_blank(),
-#         panel.grid.major.y = element_blank(),
-#         panel.grid.major.x = element_line(color = "snow2"),
-#         strip.text.x = element_text(color = "#404040", face = "bold"))
 
 ggplot(cooking_plot_dat_duration %>% 
          filter(period != "change"), aes(x = period, y = Result, fill = intervention)) + 
@@ -381,14 +383,56 @@ ggplot(cooking_plot_dat_duration %>%
 ggsave("plots/avg concentration before and after barplots2.png", height = 9, width = 16, units = "in")
 
 
-# 
-# tbl_summary(cooking_plot_dat_duration, by = c(metric), include = c(before, end_cooking, after3hours, change),
-#             type = all_continuous() ~ "continuous2",
-#             statistic = all_continuous() ~ 
-#               c("{N_nonmiss}",
-#                 "{median} ({p25}, {p75})", 
-#                 "{min} - {max}")) 
-# 
+### EXTENDED VERSION: INCLUDING TEMP AND HUMIDITY ####
+
+
+cooking_plot_dat_ext <- air_dat_long %>% 
+  filter(metric %in% c("CO2 (ppm)", "PM10 (ug/m3)", "PM2.5 (ug/m3)", 
+                       "Temperature (F)", "Humidity (%)")) %>% 
+  mutate(metric = factor(metric)) %>% 
+  filter(as_date(date) %in% c(cooking_log$date)) %>% 
+  left_join(cooking_log, by = c("date")) %>% 
+  group_by(recorded) %>% 
+  mutate(keep = case_when(time >= start & time <= end_shift ~ "yes",
+                          TRUE ~ "no"),
+         keep_ext = case_when(time >= start_shift & time <= end_shift ~ "yes",
+                              TRUE ~ "no")) %>% 
+  filter(keep_ext == "yes")
+
+
+cooking_iaq_summ_ext <- tbl_summary(cooking_plot_dat_ext %>% 
+                                      filter(keep == "yes") , by = c(metric), include = Result,
+                                    label = c(Result ~ "All cooking events"), 
+                                    type = all_continuous() ~ "continuous2",
+                                    statistic = all_continuous() ~ 
+                                      c("{N_nonmiss}",
+                                        "{median} ({p25}, {p75})", 
+                                        "{min} - {max}")) 
+
+
+cooking_plot_wide_ext <- cooking_plot_dat_ext %>% 
+  filter(keep == "yes") %>% 
+  ungroup() %>% 
+  select(-recorded) %>% 
+  mutate(hour_match = hour(time),
+         minute_match = minute(time)) %>%
+  select(-time, -Time) %>% 
+  #pivot_wider(names_from = "metric", values_from = "Result") %>% 
+  pivot_wider(names_from = "intervention", values_from = "Result") %>% 
+  select(metric, `no intervention`, `fan only`, `window only`, `fan + window`, date, hour_match, minute_match) 
+# select(`PM2.5 (ug/m3)`, `PM10 (ug/m3)`,`CO2 (ppm)`, intervention, date, hour_match, minute_match) 
+
+int_summary_ext <- tbl_summary(cooking_plot_wide_ext, by = c(metric), include = c(`no intervention`, `fan only`, `window only`, `fan + window`), missing = "no", 
+                           type = all_continuous() ~ "continuous2",
+                           statistic = all_continuous() ~ c("{N_nonmiss}",
+                                                            "{median} ({p25}, {p75})", 
+                                                            "{min} - {max}"))
+
+
+gtsummary::tbl_stack(list(cooking_iaq_summ_ext, int_summary_ext))%>% 
+  as_flex_table() %>%
+  set_caption(caption = "Summary of IAQ during cooking events by intervention type")
+
 
 ###############################################################################
 # 7. VISUALIZE INTERVENTION   #################################################
