@@ -14,7 +14,6 @@ library(crosstalk)
 # load and clean data
 
 air_dat <- read.csv("../data/2960014368-latest.csv", sep = ";")
-#air_dat <- read.csv(url("https://airthings-prod-user-data.s3.amazonaws.com/0536b1ff-53fc-4275-82a0-bae0ea638fa2/csv-exports/2960014368-latest.csv?X-Amz-Security-Token=IQoJb3JpZ2luX2VjEPj%2F%2F%2F%2F%2F%2F%2F%2F%2F%2FwEaCXVzLWVhc3QtMSJHMEUCIQDbTa5jvtuRlU2puxH5b6whX0SSngcRllLQes7kka6TFgIgWKV%2FMu9JfW7%2F0B8cA%2BWq4TAQBhHTvvnJpXoU8L2huu0qkgIIURADGgw0MTI5MzIyMzk1NDMiDD3DriRAAyxE%2FwdARyrvAXboYTc2lbklrULZzWp7yk86EhPa84fDg%2BKJShzQ0h4kgRkS67afD2X%2FERelga%2B%2BvDeKRplYYpk2pzcs5y16gwmyUr7KmuJnT4fSw%2FQOO7eVXsn%2FPhm%2BTalPHJ15LMbk7WABwMsQD2G1AFh1C7PxsuJGYnDc1cdrfja0xX3tSBuU5Bx2o8Q1D7ZpOpcpJsGYrEpR2%2FPp1iKef0DyWPhNO9kjhrHAB0sJeXfrt6FLUjSbfyIxPgONpeWD7xxPQNPMNNQilHeCCrjgTNEzUzWJf0g4GDneuvyh2VXNf0QIhSceSwoUkzx%2FnpHrR0S1RCl8MI3L0JAGOpoBsGupNFDETRqfl8qEvh5d6noHEUenl%2BANrY1KG6jDMAZmJSBAxMZC4NnmxdJsIKnCtTxUn1qXky0LSbND%2B8VUWRfyXRF5bwNi%2BsKF8Ywub9GSFWUGt8TKamPwfD164XTKslOarKqK5GV8%2Bynl7YB6ss0NUK0P3jDzZg9YJwI4lbjSTvznpXJGg62iX3BfgzdSvkFqirswx8b7dw%3D%3D&X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Date=20220222T002005Z&X-Amz-SignedHeaders=host&X-Amz-Expires=1799&X-Amz-Credential=ASIAWAJFN6C35BFJ3DPK%2F20220222%2Fus-east-1%2Fs3%2Faws4_request&X-Amz-Signature=7040b8be8b7088186e621729ba831035a52a6a9ae5d81ed415ef3f74474615ac"), sep = ";")
 
 
 
@@ -100,8 +99,6 @@ time_subplot <- function(ggdat, facet){
                   color = day(recorded),
                   label = Time,
                   label2 = date)) +
-    # geom_line(mapping = aes(x = recorded, y = mean7day), 
-    #           size = 1, color = "#ec7f78", linetype = "dashed") + 
     viridis::scale_color_viridis() +
     facet_wrap(~metric, ncol = 1, scales = "free_y") +
     ggthemes::theme_pander() +
@@ -123,7 +120,6 @@ time_subplot <- function(ggdat, facet){
     geom_boxplot(aes(x = "Current\nRange", y = Result)) + 
     geom_boxplot(air_dat_long %>%
                    filter(metric == facet), mapping = aes(x = "All\nMeasurements", y = Result)) +
-    #scale_x_discrete(labels=c(`facet` = , "2" = )) + 
     ggthemes::theme_pander() +
     theme(legend.position = "none",
           panel.grid.major.y = element_blank(),

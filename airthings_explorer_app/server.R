@@ -8,14 +8,7 @@
 #
 
 shinyServer(function(input, output) {
-  
-  # output$date_range <- renderUI({
-  #     dateRangeInput("date_range", "Date Range:", 
-  #                    start = min(air_dat_long$date),
-  #                    end = max(air_dat_long$date),
-  #                    min = min(air_dat_long$date),
-  #                    max = max(air_dat_long$date))
-  # })
+
   
   output$metric <- renderUI({
     pickerInput("metric", "Select Metric",
@@ -26,15 +19,7 @@ shinyServer(function(input, output) {
                 multiple = TRUE
     )
   })
-  
-  # output$roavg <- renderUI({
-  #   pickerInput("roavg", "Add a rolling average",
-  #               choices = as.list(c("mean1hr", "mean24hr", "mean7day")),
-  #               options = list(`actions-box` = TRUE,
-  #                              title = "Select averaging period(s)"),
-  #               #selected = "none",
-  #               multiple = TRUE)
-  # })
+
   
   #filter data based on user input
   dat <- eventReactive(input$date_select, {
@@ -43,12 +28,7 @@ shinyServer(function(input, output) {
     if(input$date_select == "dates"){
       air_dat_long %>% 
         filter(date >= min(input$date_range) &
-                 date  <= max(input$date_range)) #%>% 
-        # arrange(metric, recorded) %>% 
-        # group_by(metric) %>% 
-        # mutate(mean7day = slider::slide_index_mean(x = Result, i = recorded, before = days(6)),
-        #        mean24hr = slider::slide_index_mean(x = Result, i = recorded, before = hours(23)),
-        #        mean1hr = slider::slide_index_mean(x = Result, i = recorded, before = hours(1)))
+                 date  <= max(input$date_range)) 
     }
     
     else if(input$date_select == "12hr"){
@@ -355,28 +335,7 @@ shinyServer(function(input, output) {
   output$pmplot <- renderPlotly({
     sub_dat <- dat() %>% 
       filter(str_detect(metric, "PM"))
-    
-    # sub_plot <- ggplot(sub_dat) +
-    #     geom_line(aes(x = recorded, y = Result ,
-    #                   color = metric,
-    #                   alpha = metric,
-    #                   label = Time,
-    #                   label2 = date)) +
-    #     scale_color_manual(values = c("#cf9c2e", "#ec7f78"))+
-    #     scale_alpha_manual(values = c(0.75, .5))+
-    #     #viridis::scale_color_viridis() +
-    #     #facet_wrap(~metric, ncol = 1, scales = "free_y") +
-    #     ggthemes::theme_pander() +
-    #     xlab("Date")+
-    #     ylab("Concentration") +
-    #     theme(legend.position = "none",
-    #           panel.grid.major.y = element_blank(),
-    #           panel.grid.major.x = element_line(color = "snow2"),
-    #           strip.text.x = element_text(color = "#556B2F", face = "bold"),
-    #           text = element_text(family = "Arial"))
-    # 
-    # sub_plotly <- ggplotly(sub_plot,
-    #                        tooltip = c("y", "label", "label2"))
+  
     
     
     sep_pm_plot <- ggplot(sub_dat) +
@@ -384,12 +343,6 @@ shinyServer(function(input, output) {
                     color = metric,
                     label = Time,
                     label2 = date)) +
-      # geom_line(mapping = aes(x = recorded, y = mean7day), 
-      #           size = 1, color = "#ec7f78", linetype = "dashed") + 
-      # geom_line(mapping = aes(x = recorded, y = mean24hr), 
-      #           size = 1, color = "grey", linetype = "dashed") + 
-      # geom_line(mapping = aes(x = recorded, y = mean1hr), 
-      #           size = 1, color = "light blue", linetype = "dashed") + 
       scale_color_manual(values = c("#cf9c2e", "#7ab4b1"))+
       facet_wrap(~metric, ncol = 1, scales = "free_y") +
       ggthemes::theme_pander() +
@@ -422,27 +375,9 @@ shinyServer(function(input, output) {
             panel.spacing = unit(2, "lines"))
     
     sep_pm_boxly <- ggplotly(sep_pm_box)
-    
-    
-    # sub_box <- ggplot(sub_dat) +
-    #     geom_boxplot(aes(x = "Current\nRange", y = Result, fill = metric)) +
-    #     geom_boxplot(air_dat_long %>%
-    #                      filter(str_detect(metric, "PM")),
-    #                  mapping = aes(x = "All\nMeasurements",
-    #                                y = Result, fill = metric)) +
-    #     scale_fill_manual(values = c("#cf9c2e", "#ec7f78")) +
-    #     ggthemes::theme_pander() +
-    #     theme(legend.position = "none",
-    #           panel.grid.major.y = element_blank(),
-    #           panel.grid.major.x = element_line(color = "snow2"),
-    #           text = element_text(family = "Arial"))
-    # sub_box_ly <- ggplotly(sub_box)
+  
     
     subplot(list(sep_pm_plotly, sep_pm_boxly), widths = c(.8, .2), margin = 0)
-    
-    
-    # subplot(list(sub_plotly, sub_box_ly), widths = c(.9, .1),
-    #         nrows = 1, shareY = TRUE, margin = 0))
     
     
   })
