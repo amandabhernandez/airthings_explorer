@@ -2,7 +2,8 @@
 
 This repository contains R code that handles the csv output from the Airthings web dashboard. There are 2 main projects here: 
 
-1. An R script which cleans up the .csv file that Airthings gives you, including changing the time zone to EST. You can download just this file and read in your own data file to make it work. (airthings_explorer.R)
+1. An R scripts which cleans up the .csv file that Airthings gives you, including changing the time zone to EST. You can download just this file and read in your own data file to make it work (airthings_explorer.R). Also the script created for an analysis of the impact of kitchen exhaust fans and natural ventilation on cooking emissions from gas stoves (airthings_final.R).
+
 
 
 
