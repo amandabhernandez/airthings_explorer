@@ -20,7 +20,7 @@ dashboardPage(
                                 "36 hours" = "36hr",
                                 "48 hours" = "48hr", 
                                 "1 week" = "1wk", 
-                                #"1 month" = "1mo"
+                                "1 month" = "1mo"
                                 ),
                     selected = "1wk", 
                     options = list(`actions-box` = TRUE,
